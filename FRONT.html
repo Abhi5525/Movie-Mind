@@ -1,0 +1,2963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MovieMind – Smart Movie Recommendations</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+
+    body {
+      background: radial-gradient(circle at top, #1b2735, #090a0f);
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* MODAL STYLES */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: linear-gradient(145deg, #0f1520, #1a1f2e);
+      padding: 40px;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 450px;
+      position: relative;
+      border: 1px solid #00e5ff33;
+      box-shadow: 0 20px 50px rgba(0, 229, 255, 0.1);
+    }
+
+    .close-modal {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 28px;
+      cursor: pointer;
+      color: #00e5ff;
+      transition: 0.3s;
+    }
+
+    .close-modal:hover {
+      transform: scale(1.2);
+    }
+
+    .modal h2 {
+      text-align: center;
+      color: #00e5ff;
+      margin-bottom: 30px;
+      font-size: 28px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #b0b7c3;
+      font-size: 14px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 2px solid #2a2f3d;
+      background: #141824;
+      color: white;
+      font-size: 15px;
+      transition: 0.3s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #00e5ff;
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+    }
+
+    .form-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(90deg, #00e5ff, #00b8d4);
+      border: none;
+      border-radius: 12px;
+      color: #000;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+      margin-top: 10px;
+    }
+
+    .form-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(0, 229, 255, 0.3);
+    }
+
+    .form-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .switch-form {
+      text-align: center;
+      margin-top: 20px;
+      color: #b0b7c3;
+      font-size: 14px;
+    }
+
+    .switch-form span {
+      color: #00e5ff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    .switch-form span:hover {
+      text-decoration: underline;
+    }
+
+    .error-message {
+      color: #ff6b6b;
+      font-size: 13px;
+      margin-top: 5px;
+      display: none;
+    }
+
+    .success-message {
+      color: #4cd964;
+      font-size: 13px;
+      margin-top: 5px;
+      display: none;
+    }
+
+    /* USER PANEL MODAL */
+    #userPanelModal .modal-content {
+      max-width: 900px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .user-panel {
+      display: none;
+    }
+
+    .user-panel.active {
+      display: block;
+    }
+
+    .user-header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #2a2f3d;
+    }
+
+    .user-avatar-large {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00e5ff, #00b8d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 600;
+      color: #000;
+      margin: 0 auto 15px;
+    }
+
+    .user-info h3 {
+      color: #00e5ff;
+      margin-bottom: 5px;
+    }
+
+    .user-info p {
+      color: #b0b7c3;
+      font-size: 14px;
+    }
+
+    .user-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      border: 1px solid #2a2f3d;
+      transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      border-color: #00e5ff;
+    }
+
+    .stat-card .stat-number {
+      font-size: 28px;
+      font-weight: 600;
+      color: #00e5ff;
+      margin-bottom: 5px;
+    }
+
+    .stat-card .stat-label {
+      font-size: 12px;
+      color: #b0b7c3;
+      opacity: 0.8;
+    }
+
+    .panel-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      border-bottom: 1px solid #2a2f3d;
+      padding-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .panel-tab {
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      color: #b0b7c3;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.3s;
+      white-space: nowrap;
+    }
+
+    .panel-tab.active {
+      background: rgba(0, 229, 255, 0.1);
+      color: #00e5ff;
+    }
+
+    .panel-tab:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .panel-content {
+      display: none;
+    }
+
+    .panel-content.active {
+      display: block;
+    }
+
+    .movie-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 15px;
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+
+    .movie-item {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: transform 0.3s;
+      position: relative;
+    }
+
+    .movie-item:hover {
+      transform: translateY(-5px);
+      border: 1px solid #00e5ff;
+    }
+
+    .movie-item img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+
+    .movie-info-small {
+      padding: 10px;
+    }
+
+    .movie-info-small h4 {
+      font-size: 14px;
+      margin-bottom: 5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .movie-info-small p {
+      font-size: 12px;
+      color: #b0b7c3;
+      opacity: 0.8;
+    }
+
+    .movie-actions {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .movie-action-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      border: none;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+
+    .movie-action-btn:hover {
+      background: rgba(0, 229, 255, 0.9);
+      transform: scale(1.1);
+    }
+
+    .movie-action-btn.remove {
+      color: #ff6b6b;
+    }
+
+    .movie-action-btn.remove:hover {
+      background: rgba(255, 107, 107, 0.9);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #b0b7c3;
+    }
+
+    .empty-state i {
+      font-size: 60px;
+      margin-bottom: 20px;
+      opacity: 0.3;
+    }
+
+    .empty-state h4 {
+      color: #00e5ff;
+      margin-bottom: 10px;
+    }
+
+    /* GENRE TAGS */
+    .genre-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .genre-tag {
+      background: rgba(0, 229, 255, 0.1);
+      padding: 6px 12px;
+      border-radius: 15px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .genre-tag:hover {
+      background: rgba(0, 229, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    /* NOTIFICATION STYLES */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-width: 300px;
+      max-width: 400px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      animation: slideIn 0.3s ease;
+      z-index: 9999;
+    }
+
+    .notification.success {
+      background: #2ecc71;
+    }
+
+    .notification.error {
+      background: #e74c3c;
+    }
+
+    .notification.info {
+      background: #3498db;
+    }
+
+    .notification button {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    /* NAVBAR */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 50px;
+      position: sticky;
+      top: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+
+    nav h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #00e5ff;
+      cursor: pointer;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 25px;
+    }
+
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: 30px;
+    }
+
+    nav ul li {
+      cursor: pointer;
+      font-size: 15px;
+      opacity: 0.85;
+      transition: 0.3s;
+    }
+
+    nav ul li:hover { opacity: 1; color: #00e5ff; }
+
+    .auth-buttons {
+      display: flex;
+      gap: 15px;
+    }
+
+    .auth-btn {
+      padding: 10px 24px;
+      border-radius: 25px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+      font-size: 14px;
+    }
+
+    .login-btn {
+      background: transparent;
+      border: 2px solid #00e5ff;
+      color: #00e5ff;
+    }
+
+    .login-btn:hover {
+      background: rgba(0, 229, 255, 0.1);
+    }
+
+    .register-btn {
+      background: #00e5ff;
+      color: #000;
+    }
+
+    .register-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 229, 255, 0.3);
+    }
+
+    .user-menu {
+      display: none;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00e5ff, #00b8d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 16px;
+      color: #000;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .user-avatar:hover {
+      transform: scale(1.1);
+    }
+
+    .user-name {
+      font-weight: 600;
+      color: #00e5ff;
+      cursor: pointer;
+    }
+
+    .user-name:hover {
+      text-decoration: underline;
+    }
+
+    .logout-btn {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: 0.3s;
+    }
+
+    .logout-btn:hover {
+      background: rgba(255, 107, 107, 0.1);
+    }
+
+    .search-box {
+      padding: 10px 18px;
+      border-radius: 25px;
+      border: none;
+      outline: none;
+      width: 260px;
+      background: #141824;
+      color: white;
+      border: 1px solid #2a2f3d;
+    }
+
+    /* HERO */
+    .hero {
+      height: 80vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.4), #090a0f),
+                  url('https://images.unsplash.com/photo-1524985069026-dd778a71c7b4') center/cover;
+    }
+
+    .hero-content h2 {
+      font-size: 50px;
+      margin-bottom: 15px;
+    }
+
+    .hero-content p {
+      font-size: 18px;
+      opacity: 0.9;
+      margin-bottom: 25px;
+    }
+
+    .hero-content button {
+      padding: 14px 32px;
+      border-radius: 30px;
+      border: none;
+      background: #00e5ff;
+      color: #000;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+      margin: 5px;
+    }
+
+    .hero-content button:hover { transform: scale(1.08); }
+
+    .hero-content button.secondary {
+      background: transparent;
+      border: 2px solid #00e5ff;
+      color: #00e5ff;
+    }
+
+    /* SECTION TITLE */
+    .section-title {
+      text-align: center;
+      margin: 60px 0 30px;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    /* MOVIES GRID */
+    .movies {
+      padding: 40px 60px 80px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 30px;
+    }
+
+    .movie-card {
+      position: relative;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #111;
+      transition: transform 0.4s, box-shadow 0.4s;
+      cursor: pointer;
+    }
+
+    .movie-card:hover {
+      transform: translateY(-12px) scale(1.03);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+    }
+
+    .movie-card img {
+      width: 100%;
+      height: 340px;
+      object-fit: cover;
+      transition: transform 0.4s;
+    }
+
+    .movie-card:hover img {
+      transform: scale(1.1);
+    }
+
+    .rating {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: rgba(0,0,0,0.8);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      color: #00e5ff;
+      z-index: 2;
+    }
+
+    .movie-info {
+      padding: 18px;
+      background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+    }
+
+    .movie-info h3 { font-size: 18px; margin-bottom: 6px; }
+    .movie-info p { font-size: 13px; opacity: 0.85; }
+
+    /* MOVIE ACTIONS IN MAIN GRID */
+    .movie-actions-grid {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .action-btn {
+      background: none;
+      border: none;
+      color: #b0b7c3;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.3s;
+      padding: 5px;
+    }
+
+    .action-btn:hover {
+      transform: scale(1.2);
+    }
+
+    .action-btn.watchlist.active {
+      color: #00e5ff;
+    }
+
+    .action-btn.favorite.active {
+      color: #ff6b6b;
+    }
+
+    .action-btn.rating.active {
+      color: #ffd700;
+    }
+
+    .quick-rating {
+      display: flex;
+      gap: 2px;
+    }
+
+    .quick-star {
+      color: #666;
+      cursor: pointer;
+      font-size: 14px;
+      transition: color 0.3s;
+    }
+
+    .quick-star:hover,
+    .quick-star.active {
+      color: #ffd700;
+    }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: 25px;
+      background: #050505;
+      font-size: 14px;
+      opacity: 0.7;
+    }
+
+    /* RESPONSIVE */
+    @media(max-width: 768px) {
+      nav { padding: 20px; flex-direction: column; gap: 15px; }
+      .nav-right { flex-direction: column; width: 100%; }
+      .auth-buttons { width: 100%; justify-content: center; }
+      .hero-content h2 { font-size: 36px; }
+      .search-box { width: 100%; }
+      .movies { padding: 20px; }
+      .user-stats { grid-template-columns: repeat(2, 1fr); }
+      .movie-list { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+      .panel-tabs { overflow-x: auto; }
+    }
+
+    /* WATCHLIST STATUS INDICATOR */
+    .watchlist-status {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: rgba(0, 229, 255, 0.9);
+      color: #000;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      z-index: 2;
+    }
+
+    /* LOADING SPINNER */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #00e5ff;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* PROGRESS BAR FOR WATCHLIST */
+    .watchlist-progress {
+      margin: 20px 0;
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: #2a2f3d;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00e5ff, #00b8d4);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav>
+    <h1 onclick="fetchRecommendations()">🎬 MovieMind</h1>
+    
+    <div class="nav-right">
+      <ul>
+        <li data-genre="All" onclick="filterByGenre('All')">Home</li>
+        <li data-genre="Action" onclick="filterByGenre('Action')">Action</li>
+        <li data-genre="Drama" onclick="filterByGenre('Drama')">Drama</li>
+        <li data-genre="Sci-Fi" onclick="filterByGenre('Sci-Fi')">Sci-Fi</li>
+        <li data-genre="Thriller" onclick="filterByGenre('Thriller')">Thriller</li>
+      </ul>
+      
+      <input type="text" class="search-box" id="searchBox" placeholder="Search movies..." />
+      
+      <!-- Auth Buttons (shown when not logged in) -->
+      <div class="auth-buttons" id="authButtons">
+        <button class="auth-btn login-btn" onclick="showLoginModal()">Login</button>
+        <button class="auth-btn register-btn" onclick="showRegisterModal()">Register</button>
+      </div>
+      
+      <!-- User Menu (shown when logged in) -->
+      <div class="user-menu" id="userMenu">
+        <div class="user-avatar" id="userAvatar" onclick="showUserPanel()">U</div>
+        <span class="user-name" id="userName" onclick="showUserPanel()">User</span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- LOGIN MODAL -->
+  <div id="loginModal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" onclick="closeModal('loginModal')">&times;</span>
+      <h2>Login to MovieMind</h2>
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="Enter your email" required>
+          <div class="error-message" id="loginEmailError"></div>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPassword" placeholder="Enter your password" required>
+          <div class="error-message" id="loginPasswordError"></div>
+        </div>
+        <button type="submit" class="form-btn">Login</button>
+        <div class="success-message" id="loginSuccess"></div>
+      </form>
+      <div class="switch-form">
+        Don't have an account? <span onclick="switchToRegister()">Register here</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGISTER MODAL -->
+  <div id="registerModal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" onclick="closeModal('registerModal')">&times;</span>
+      <h2>Join MovieMind</h2>
+      <form id="registerForm">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="registerName" placeholder="Enter your full name" required>
+          <div class="error-message" id="registerNameError"></div>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="registerEmail" placeholder="Enter your email" required>
+          <div class="error-message" id="registerEmailError"></div>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="registerPassword" placeholder="Create a password (min 6 characters)" required>
+          <div class="error-message" id="registerPasswordError"></div>
+        </div>
+        <div class="form-group">
+          <label>Confirm Password</label>
+            <input type="password" id="registerConfirmPassword" placeholder="Confirm your password" required>
+          <div class="error-message" id="registerConfirmError"></div>
+        </div>
+        <button type="submit" class="form-btn">Create Account</button>
+        <div class="success-message" id="registerSuccess"></div>
+      </form>
+      <div class="switch-form">
+        Already have an account? <span onclick="switchToLogin()">Login here</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- USER PANEL MODAL -->
+  <div id="userPanelModal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" onclick="closeModal('userPanelModal')">&times;</span>
+      
+      <div id="userPanel" class="user-panel">
+        <div class="user-header">
+          <div class="user-avatar-large" id="userAvatarLarge">U</div>
+          <div class="user-info">
+            <h3 id="panelUserName">User Name</h3>
+            <p id="panelUserEmail">user@example.com</p>
+            <p style="font-size: 12px; margin-top: 5px;">Member since: <span id="memberSince">2024</span></p>
+          </div>
+        </div>
+        
+        <div class="user-stats">
+          <div class="stat-card" onclick="switchPanelTab('watchlist')">
+            <div class="stat-number" id="watchlistCount">0</div>
+            <div class="stat-label">Watchlist</div>
+          </div>
+          <div class="stat-card" onclick="switchPanelTab('watch-history')">
+            <div class="stat-number" id="moviesWatched">0</div>
+            <div class="stat-label">Watched</div>
+          </div>
+          <div class="stat-card" onclick="switchPanelTab('favorites')">
+            <div class="stat-number" id="favoritesCount">0</div>
+            <div class="stat-label">Favorites</div>
+          </div>
+          <div class="stat-card" onclick="switchPanelTab('ratings')">
+            <div class="stat-number" id="moviesRated">0</div>
+            <div class="stat-label">Rated</div>
+          </div>
+        </div>
+
+        <!-- Watchlist Progress -->
+        <div class="watchlist-progress">
+          <div class="progress-info">
+            <span>Watchlist Progress</span>
+            <span id="watchlistProgressText">0/0</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="watchlistProgressBar" style="width: 0%"></div>
+          </div>
+        </div>
+        
+        <div class="panel-tabs">
+          <button class="panel-tab active" onclick="switchPanelTab('watchlist')">📝 Watchlist</button>
+          <button class="panel-tab" onclick="switchPanelTab('watch-history')">📺 Watched</button>
+          <button class="panel-tab" onclick="switchPanelTab('favorites')">❤️ Favorites</button>
+          <button class="panel-tab" onclick="switchPanelTab('ratings')">⭐ Ratings</button>
+          <button class="panel-tab" onclick="switchPanelTab('preferences')">🎯 Preferences</button>
+        </div>
+        
+        <!-- Watchlist Tab -->
+        <div id="watchlist-panel" class="panel-content active">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="color: #00e5ff;">Your Movie Watchlist</h4>
+            <button onclick="clearWatchlist()" style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
+              Clear All
+            </button>
+          </div>
+          <div id="watchlistList" class="movie-list">
+            <!-- Will be populated dynamically -->
+          </div>
+          <div id="emptyWatchlist" class="empty-state" style="display: none;">
+            <i class="fas fa-bookmark"></i>
+            <h4>Your Watchlist is Empty</h4>
+            <p>Add movies you want to watch later</p>
+            <p style="font-size: 12px; margin-top: 10px;">Click the bookmark icon on movies to add them here</p>
+          </div>
+        </div>
+        
+        <!-- Watch History Tab -->
+        <div id="watch-history-panel" class="panel-content">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="color: #00e5ff;">Recently Watched Movies</h4>
+            <button onclick="clearWatchHistory()" style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
+              Clear History
+            </button>
+          </div>
+          <div id="watchHistoryList" class="movie-list">
+            <!-- Will be populated dynamically -->
+          </div>
+          <div id="emptyWatchHistory" class="empty-state" style="display: none;">
+            <i class="fas fa-film"></i>
+            <h4>No Movies Watched Yet</h4>
+            <p>Start watching movies to see them here</p>
+          </div>
+        </div>
+        
+        <!-- Favorites Tab -->
+        <div id="favorites-panel" class="panel-content">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="color: #00e5ff;">Your Favorite Movies</h4>
+            <button onclick="clearFavorites()" style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
+              Clear All
+            </button>
+          </div>
+          <div id="favoritesList" class="movie-list">
+            <!-- Will be populated dynamically -->
+          </div>
+          <div id="emptyFavorites" class="empty-state" style="display: none;">
+            <i class="fas fa-heart"></i>
+            <h4>No Favorites Yet</h4>
+            <p>Click the heart icon on movies to add them here</p>
+          </div>
+        </div>
+        
+        <!-- Ratings Tab -->
+        <div id="ratings-panel" class="panel-content">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="color: #00e5ff;">Your Movie Ratings</h4>
+            <button onclick="clearRatings()" style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
+              Clear All
+            </button>
+          </div>
+          <div id="ratingsList" class="movie-list">
+            <!-- Will be populated dynamically -->
+          </div>
+          <div id="emptyRatings" class="empty-state" style="display: none;">
+            <i class="fas fa-star"></i>
+            <h4>No Ratings Yet</h4>
+            <p>Rate movies to see them here</p>
+          </div>
+        </div>
+        
+        <!-- Preferences Tab -->
+        <div id="preferences-panel" class="panel-content">
+          <h4 style="color: #00e5ff; margin-bottom: 20px;">Your Preferences</h4>
+          
+          <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h5 style="color: #00e5ff; margin-bottom: 10px;">Favorite Genres</h5>
+            <div class="genre-tags" id="preferredGenres">
+              <!-- Will be populated dynamically -->
+            </div>
+            <p style="font-size: 12px; color: #b0b7c3; margin-top: 10px;">Based on your ratings and watch history</p>
+          </div>
+          
+          <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h5 style="color: #00e5ff; margin-bottom: 10px;">Recommendation Settings</h5>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="notifyWatchlist" checked>
+                <span>Notify about watchlist movies</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="autoAddSimilar" checked>
+                <span>Auto-add similar movies to watchlist</span>
+              </label>
+            </div>
+          </div>
+          
+          <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px;">
+            <h5 style="color: #00e5ff; margin-bottom: 10px;">Quiz Profile</h5>
+            <div id="quizProfileInfo" style="color: #b0b7c3; margin-bottom: 15px;">
+              Take the quiz to get your movie profile!
+            </div>
+            <button onclick="startQuiz()" style="padding: 10px 20px; background: #00e5ff; color: #000; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+              Take Movie Quiz
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIZ MODAL -->
+  <div id="quizModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+      <span class="close-modal" onclick="closeModal('quizModal')">&times;</span>
+      
+      <div id="quizContainer">
+        <!-- Quiz content will be loaded here -->
+      </div>
+      
+      <div id="quizResults" style="display: none; text-align: center;">
+        <div style="margin: 30px 0;">
+          <i class="fas fa-film" style="font-size: 60px; color: #00e5ff; margin-bottom: 20px;"></i>
+          <h2 style="color: #00e5ff; margin-bottom: 10px;">Your Movie Profile</h2>
+          <p id="quizProfileText" style="opacity: 0.8; margin-bottom: 30px;"></p>
+        </div>
+        
+        <div style="background: rgba(0, 229, 255, 0.1); padding: 20px; border-radius: 15px; margin-bottom: 30px;">
+          <h3 style="color: #00e5ff; margin-bottom: 15px;">🎬 Based on your answers:</h3>
+          <div id="quizTags" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;"></div>
+        </div>
+        
+        <button onclick="getQuizRecommendations()" class="form-btn" style="background: linear-gradient(90deg, #00e5ff, #00b8d4);">
+          Get Your Movie Recommendations
+        </button>
+        
+        <button onclick="restartQuiz()" style="margin-top: 15px; padding: 12px 24px; background: transparent; border: 1px solid #00e5ff; color: #00e5ff; border-radius: 10px; cursor: pointer; width: 100%;">
+          Take Quiz Again
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-content">
+      <h2>Find Movies That Match Your Mood</h2>
+      <p>AI-powered recommendations made just for you</p>
+      <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+        <button onclick="getPersonalizedRecommendations()">Get Recommendations</button>
+        <button onclick="startQuiz()" class="secondary">Take Movie Quiz</button>
+        <button onclick="showUserPanel()" class="secondary" style="background: linear-gradient(90deg, #ff6b6b, #ff8e8e); border: none; color: white;">
+          <i class="fas fa-bookmark"></i> My Watchlist
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <h2 class="section-title" id="sectionTitle">🔥 Trending Movies</h2>
+
+  <!-- MOVIES -->
+  <section class="movies" id="movieContainer">
+    <!-- Movies will be loaded here dynamically -->
+  </section>
+
+<script>
+// ===== GLOBAL VARIABLES =====
+let currentUser = null;
+let movies = [];
+let searchTimeout;
+let quizState = {
+    currentStep: 0,
+    answers: {},
+    profile: {},
+    quizStarted: false
+};
+
+// DOM Elements
+const movieContainer = document.getElementById('movieContainer');
+const searchBox = document.getElementById('searchBox');
+const authButtons = document.getElementById('authButtons');
+const userMenu = document.getElementById('userMenu');
+const userAvatar = document.getElementById('userAvatar');
+const userName = document.getElementById('userName');
+
+// ===== AUTHENTICATION FUNCTIONS =====
+
+function showLoginModal() {
+    closeModal('registerModal');
+    document.getElementById('loginModal').style.display = 'flex';
+    document.getElementById('loginEmail').focus();
+}
+
+function showRegisterModal() {
+    closeModal('loginModal');
+    document.getElementById('registerModal').style.display = 'flex';
+    document.getElementById('registerName').focus();
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+    clearFormErrors(modalId);
+}
+
+function switchToRegister() {
+    closeModal('loginModal');
+    showRegisterModal();
+}
+
+function switchToLogin() {
+    closeModal('registerModal');
+    showLoginModal();
+}
+
+function clearFormErrors(modalId) {
+    const form = document.getElementById(modalId === 'loginModal' ? 'loginForm' : 'registerForm');
+    const errors = form.querySelectorAll('.error-message');
+    const successes = form.querySelectorAll('.success-message');
+    
+    errors.forEach(error => {
+        error.style.display = 'none';
+        error.textContent = '';
+    });
+    
+    successes.forEach(success => {
+        success.style.display = 'none';
+        success.textContent = '';
+    });
+}
+
+function showError(elementId, message) {
+    const errorElement = document.getElementById(elementId);
+    errorElement.textContent = message;
+    errorElement.style.display = 'block';
+}
+
+function showSuccess(elementId, message) {
+    const successElement = document.getElementById(elementId);
+    successElement.textContent = message;
+    successElement.style.display = 'block';
+}
+
+function showNotification(message, type = 'info') {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(n => n.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()">&times;</button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Load users from localStorage
+function getUsers() {
+    try {
+        return JSON.parse(localStorage.getItem('movieMindUsers')) || [];
+    } catch (e) {
+        console.error('Error loading users:', e);
+        return [];
+    }
+}
+
+// Save users to localStorage
+function saveUsers(users) {
+    try {
+        localStorage.setItem('movieMindUsers', JSON.stringify(users));
+        return true;
+    } catch (e) {
+        console.error('Error saving users:', e);
+        return false;
+    }
+}
+
+// Save user data
+function saveUserData() {
+    if (!currentUser) return;
+    
+    try {
+        const users = getUsers();
+        const userIndex = users.findIndex(u => u.email === currentUser.email);
+        
+        if (userIndex !== -1) {
+            users[userIndex] = {
+                ...users[userIndex],
+                watchlist: currentUser.watchlist || [],
+                watch_history: currentUser.watch_history || [],
+                favorites: currentUser.favorites || [],
+                ratings: currentUser.ratings || {},
+                preferred_genres: currentUser.preferred_genres || [],
+                quiz_profile: currentUser.quiz_profile || null,
+                last_login: new Date().toISOString(),
+                settings: currentUser.settings || {
+                    notifyWatchlist: true,
+                    autoAddSimilar: true
+                }
+            };
+            saveUsers(users);
+        }
+        
+        // Save current user
+        localStorage.setItem('movieMindUser', JSON.stringify(currentUser));
+        
+        // Update UI
+        updateUIForUser();
+        
+        return true;
+    } catch (e) {
+        console.error('Error saving user data:', e);
+        return false;
+    }
+}
+
+// Login function
+function login(email, password) {
+    const users = getUsers();
+    const user = users.find(u => u.email === email && u.password === password);
+    
+    if (!user) {
+        return { success: false, message: 'Invalid email or password' };
+    }
+    
+    // Don't save password in currentUser object
+    const { password: _, ...userWithoutPassword } = user;
+    currentUser = userWithoutPassword;
+    
+    // Initialize arrays if they don't exist
+    currentUser.watchlist = currentUser.watchlist || [];
+    currentUser.watch_history = currentUser.watch_history || [];
+    currentUser.favorites = currentUser.favorites || [];
+    currentUser.ratings = currentUser.ratings || {};
+    currentUser.preferred_genres = currentUser.preferred_genres || [];
+    currentUser.settings = currentUser.settings || {
+        notifyWatchlist: true,
+        autoAddSimilar: true
+    };
+    
+    // Save to localStorage
+    saveUserData();
+    
+    return { success: true, user: currentUser };
+}
+
+// Register function
+function register(name, email, password, confirmPassword) {
+    // Validation
+    if (!name || !email || !password || !confirmPassword) {
+        return { success: false, message: 'All fields are required' };
+    }
+    
+    if (password !== confirmPassword) {
+        return { success: false, message: 'Passwords do not match' };
+    }
+    
+    if (password.length < 6) {
+        return { success: false, message: 'Password must be at least 6 characters' };
+    }
+    
+    const users = getUsers();
+    
+    // Check if user already exists
+    if (users.some(u => u.email === email)) {
+        return { success: false, message: 'User with this email already exists' };
+    }
+    
+    // Create new user
+    const newUser = {
+        id: Date.now().toString(),
+        name: name,
+        email: email,
+        password: password,
+        joinDate: new Date().toISOString().split('T')[0],
+        watchlist: [],
+        watch_history: [],
+        favorites: [],
+        ratings: {},
+        preferred_genres: [],
+        quiz_profile: null,
+        settings: {
+            notifyWatchlist: true,
+            autoAddSimilar: true
+        }
+    };
+    
+    // Add user to array
+    users.push(newUser);
+    
+    // Save to localStorage
+    if (saveUsers(users)) {
+        // Don't save password in currentUser object
+        const { password: _, ...userWithoutPassword } = newUser;
+        currentUser = userWithoutPassword;
+        
+        // Save user data
+        saveUserData();
+        
+        return { success: true, user: currentUser };
+    } else {
+        return { success: false, message: 'Failed to save user data' };
+    }
+}
+
+function logout() {
+    currentUser = null;
+    localStorage.removeItem('movieMindUser');
+    updateUIForUser();
+    showNotification('Logged out successfully!', 'info');
+}
+
+function updateUIForUser() {
+    if (currentUser) {
+        // User is logged in
+        authButtons.style.display = 'none';
+        userMenu.style.display = 'flex';
+        
+        // Set user info
+        const firstName = currentUser.name.split(' ')[0];
+        userName.textContent = firstName;
+        userAvatar.textContent = firstName.charAt(0).toUpperCase();
+    } else {
+        // User is logged out
+        authButtons.style.display = 'flex';
+        userMenu.style.display = 'none';
+    }
+}
+
+// ===== USER PANEL FUNCTIONS =====
+
+function showUserPanel() {
+    if (!currentUser) {
+        showNotification('Please login to view your profile', 'info');
+        showLoginModal();
+        return;
+    }
+    
+    // Update user info in panel
+    document.getElementById('panelUserName').textContent = currentUser.name;
+    document.getElementById('panelUserEmail').textContent = currentUser.email;
+    document.getElementById('memberSince').textContent = currentUser.joinDate;
+    document.getElementById('userAvatarLarge').textContent = currentUser.name.charAt(0).toUpperCase();
+    
+    // Update stats
+    updateUserStats();
+    
+    // Load user data
+    loadWatchlist();
+    loadWatchHistory();
+    loadFavorites();
+    loadRatings();
+    loadPreferences();
+    
+    // Show panel
+    document.getElementById('userPanelModal').style.display = 'flex';
+    document.getElementById('userPanel').classList.add('active');
+    
+    // Reset to watchlist tab
+    switchPanelTab('watchlist');
+}
+
+function switchPanelTab(tabId) {
+    // Update tab buttons
+    document.querySelectorAll('.panel-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    const tabButton = document.querySelector(`[onclick="switchPanelTab('${tabId}')"]`);
+    if (tabButton) tabButton.classList.add('active');
+    
+    // Update panel content
+    document.querySelectorAll('.panel-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(`${tabId}-panel`).classList.add('active');
+}
+
+function updateUserStats() {
+    if (!currentUser) return;
+    
+    // Watchlist count
+    const watchlistCount = currentUser.watchlist ? currentUser.watchlist.length : 0;
+    document.getElementById('watchlistCount').textContent = watchlistCount;
+    
+    // Movies watched
+    const moviesWatched = currentUser.watch_history ? currentUser.watch_history.length : 0;
+    document.getElementById('moviesWatched').textContent = moviesWatched;
+    
+    // Favorites count
+    const favoritesCount = currentUser.favorites ? currentUser.favorites.length : 0;
+    document.getElementById('favoritesCount').textContent = favoritesCount;
+    
+    // Movies rated
+    const moviesRated = currentUser.ratings ? Object.keys(currentUser.ratings).length : 0;
+    document.getElementById('moviesRated').textContent = moviesRated;
+    
+    // Update watchlist progress
+    updateWatchlistProgress();
+}
+
+function updateWatchlistProgress() {
+    if (!currentUser || !currentUser.watchlist) return;
+    
+    const total = currentUser.watchlist.length;
+    const watched = currentUser.watchlist.filter(movie => 
+        currentUser.watch_history && 
+        currentUser.watch_history.some(watchedMovie => watchedMovie.id === movie.id)
+    ).length;
+    
+    const progress = total > 0 ? Math.round((watched / total) * 100) : 0;
+    
+    document.getElementById('watchlistProgressText').textContent = `${watched}/${total}`;
+    document.getElementById('watchlistProgressBar').style.width = `${progress}%`;
+}
+
+// ===== WATCHLIST FUNCTIONS =====
+
+function toggleWatchlist(event, movieId, title, img, rating, year) {
+    event.stopPropagation();
+    
+    if (!currentUser) {
+        showNotification('Please login to use the watchlist', 'info');
+        showLoginModal();
+        return;
+    }
+    
+    if (!currentUser.watchlist) {
+        currentUser.watchlist = [];
+    }
+    
+    const isInWatchlist = currentUser.watchlist.some(item => item.id === movieId);
+    
+    if (isInWatchlist) {
+        // Remove from watchlist
+        currentUser.watchlist = currentUser.watchlist.filter(item => item.id !== movieId);
+        event.target.classList.remove('active');
+        event.target.innerHTML = '<i class="far fa-bookmark"></i>';
+        showNotification(`Removed "${title}" from watchlist`, 'info');
+    } else {
+        // Add to watchlist
+        currentUser.watchlist.push({
+            id: movieId,
+            title: title,
+            img: img,
+            rating: rating,
+            year: year,
+            addedDate: new Date().toISOString()
+        });
+        event.target.classList.add('active');
+        event.target.innerHTML = '<i class="fas fa-bookmark"></i>';
+        showNotification(`Added "${title}" to your watchlist`, 'success');
+        
+        // Auto-add similar movies if enabled
+        if (currentUser.settings?.autoAddSimilar) {
+            setTimeout(() => autoAddSimilarMovies(movieId, title), 1000);
+        }
+    }
+    
+    // Save to localStorage
+    saveUserData();
+    
+    // Update stats if user panel is open
+    if (document.getElementById('userPanelModal').style.display === 'flex') {
+        updateUserStats();
+        loadWatchlist();
+    }
+}
+
+function autoAddSimilarMovies(movieId, title) {
+    // This would call your backend to get similar movies
+    // For now, we'll just show a notification
+    showNotification(`Looking for movies similar to "${title}"...`, 'info');
+    
+    // In a real app, you would make an API call here:
+    // fetch(`/recommend/similar/${movieId}`).then(...)
+    
+    setTimeout(() => {
+        showNotification(`Found similar movies! Check your watchlist.`, 'success');
+    }, 2000);
+}
+
+function loadWatchlist() {
+    const container = document.getElementById('watchlistList');
+    const emptyState = document.getElementById('emptyWatchlist');
+    
+    if (!currentUser || !currentUser.watchlist || currentUser.watchlist.length === 0) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+    
+    // Sort by added date (newest first)
+    const sortedWatchlist = [...currentUser.watchlist].sort((a, b) => 
+        new Date(b.addedDate) - new Date(a.addedDate)
+    );
+    
+    container.innerHTML = sortedWatchlist.map(movie => {
+        const isWatched = currentUser.watch_history && 
+            currentUser.watch_history.some(watched => watched.id === movie.id);
+        
+        return `
+            <div class="movie-item ${isWatched ? 'watched' : ''}">
+                ${isWatched ? '<div class="watchlist-status">Watched</div>' : ''}
+                <img src="${movie.img || getDefaultPoster(movie.title)}" alt="${movie.title}" 
+                     onerror="this.src='https://via.placeholder.com/150x200/1a1a2e/ffffff?text=Movie'">
+                <div class="movie-info-small">
+                    <h4>${movie.title.length > 20 ? movie.title.substring(0, 20) + '...' : movie.title}</h4>
+                    <p>⭐ ${movie.rating || 'N/A'} • ${movie.year || 'N/A'}</p>
+                    <p style="font-size: 10px; color: #666;">Added: ${new Date(movie.addedDate).toLocaleDateString()}</p>
+                </div>
+                <div class="movie-actions">
+                    <button class="movie-action-btn" onclick="markAsWatched(event, ${movie.id})" title="Mark as watched">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button class="movie-action-btn remove" onclick="removeFromWatchlist(event, ${movie.id})" title="Remove">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.style.display = 'grid';
+    emptyState.style.display = 'none';
+}
+
+function markAsWatched(event, movieId) {
+    event.stopPropagation();
+    
+    const movie = currentUser.watchlist.find(item => item.id === movieId);
+    if (!movie) return;
+    
+    // Add to watch history
+    if (!currentUser.watch_history) currentUser.watch_history = [];
+    
+    // Remove if already exists
+    currentUser.watch_history = currentUser.watch_history.filter(m => m.id !== movieId);
+    
+    // Add to beginning
+    currentUser.watch_history.unshift({
+        id: movie.id,
+        title: movie.title,
+        img: movie.img,
+        year: movie.year,
+        rating: movie.rating,
+        watchedDate: new Date().toISOString()
+    });
+    
+    // Keep only last 100 movies
+    currentUser.watch_history = currentUser.watch_history.slice(0, 100);
+    
+    // Remove from watchlist
+    currentUser.watchlist = currentUser.watchlist.filter(item => item.id !== movieId);
+    
+    // Save and update
+    saveUserData();
+    loadWatchlist();
+    loadWatchHistory();
+    updateUserStats();
+    
+    showNotification(`Marked "${movie.title}" as watched`, 'success');
+}
+
+function removeFromWatchlist(event, movieId) {
+    event.stopPropagation();
+    
+    const movie = currentUser.watchlist.find(item => item.id === movieId);
+    if (!movie) return;
+    
+    currentUser.watchlist = currentUser.watchlist.filter(item => item.id !== movieId);
+    
+    saveUserData();
+    loadWatchlist();
+    updateUserStats();
+    
+    showNotification(`Removed "${movie.title}" from watchlist`, 'info');
+}
+
+function clearWatchlist() {
+    if (!currentUser || !currentUser.watchlist || currentUser.watchlist.length === 0) {
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to remove all ${currentUser.watchlist.length} movies from your watchlist?`)) {
+        currentUser.watchlist = [];
+        saveUserData();
+        loadWatchlist();
+        updateUserStats();
+        showNotification('Watchlist cleared', 'info');
+    }
+}
+
+// ===== WATCH HISTORY FUNCTIONS =====
+
+function addToWatchHistory(movie) {
+    if (!currentUser) {
+        showNotification('Please login to track your watch history', 'info');
+        showLoginModal();
+        return;
+    }
+    
+    if (!currentUser.watch_history) {
+        currentUser.watch_history = [];
+    }
+    
+    // Remove if already exists (to prevent duplicates)
+    currentUser.watch_history = currentUser.watch_history.filter(m => m.id !== movie.id);
+    
+    // Add to beginning
+    currentUser.watch_history.unshift({
+        id: movie.id,
+        title: movie.title,
+        img: movie.img,
+        year: movie.year,
+        rating: movie.rating,
+        watchedDate: new Date().toISOString()
+    });
+    
+    // Keep only last 100 movies
+    currentUser.watch_history = currentUser.watch_history.slice(0, 100);
+    
+    // Remove from watchlist if it exists there
+    if (currentUser.watchlist) {
+        currentUser.watchlist = currentUser.watchlist.filter(item => item.id !== movie.id);
+    }
+    
+    // Save to localStorage
+    saveUserData();
+    
+    // Update UI if user panel is open
+    if (document.getElementById('userPanelModal').style.display === 'flex') {
+        updateUserStats();
+        loadWatchlist();
+        loadWatchHistory();
+    }
+    
+    showNotification(`Added "${movie.title}" to your watch history`, 'success');
+}
+
+function loadWatchHistory() {
+    const container = document.getElementById('watchHistoryList');
+    const emptyState = document.getElementById('emptyWatchHistory');
+    
+    if (!currentUser || !currentUser.watch_history || currentUser.watch_history.length === 0) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+    
+    // Get last 20 watched movies
+    const recentHistory = currentUser.watch_history.slice(0, 20);
+    
+    container.innerHTML = recentHistory.map(movie => `
+        <div class="movie-item">
+            <img src="${movie.img || getDefaultPoster(movie.title)}" alt="${movie.title}" 
+                 onerror="this.src='https://via.placeholder.com/150x200/1a1a2e/ffffff?text=Movie'">
+            <div class="movie-info-small">
+                <h4>${movie.title.length > 20 ? movie.title.substring(0, 20) + '...' : movie.title}</h4>
+                <p>⭐ ${movie.rating || 'N/A'} • ${movie.year || 'N/A'}</p>
+                <p style="font-size: 10px; color: #666;">Watched: ${new Date(movie.watchedDate).toLocaleDateString()}</p>
+            </div>
+            <div class="movie-actions">
+                <button class="movie-action-btn" onclick="reAddToWatchlist(event, ${movie.id})" title="Add back to watchlist">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <button class="movie-action-btn remove" onclick="removeFromHistory(event, ${movie.id})" title="Remove">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+    
+    container.style.display = 'grid';
+    emptyState.style.display = 'none';
+}
+
+function reAddToWatchlist(event, movieId) {
+    event.stopPropagation();
+    
+    const movie = currentUser.watch_history.find(item => item.id === movieId);
+    if (!movie) return;
+    
+    if (!currentUser.watchlist) currentUser.watchlist = [];
+    
+    // Check if already in watchlist
+    if (!currentUser.watchlist.some(item => item.id === movieId)) {
+        currentUser.watchlist.push({
+            id: movie.id,
+            title: movie.title,
+            img: movie.img,
+            rating: movie.rating,
+            year: movie.year,
+            addedDate: new Date().toISOString()
+        });
+        
+        // Remove from history
+        currentUser.watch_history = currentUser.watch_history.filter(item => item.id !== movieId);
+        
+        saveUserData();
+        loadWatchHistory();
+        loadWatchlist();
+        updateUserStats();
+        
+        showNotification(`Added "${movie.title}" back to watchlist`, 'success');
+    }
+}
+
+function removeFromHistory(event, movieId) {
+    event.stopPropagation();
+    
+    const movie = currentUser.watch_history.find(item => item.id === movieId);
+    if (!movie) return;
+    
+    currentUser.watch_history = currentUser.watch_history.filter(item => item.id !== movieId);
+    
+    saveUserData();
+    loadWatchHistory();
+    updateUserStats();
+    
+    showNotification(`Removed "${movie.title}" from history`, 'info');
+}
+
+function clearWatchHistory() {
+    if (!currentUser || !currentUser.watch_history || currentUser.watch_history.length === 0) {
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to clear your watch history (${currentUser.watch_history.length} movies)?`)) {
+        currentUser.watch_history = [];
+        saveUserData();
+        loadWatchHistory();
+        updateUserStats();
+        showNotification('Watch history cleared', 'info');
+    }
+}
+
+// ===== FAVORITES FUNCTIONS =====
+
+function toggleFavorite(event, movieId, title, img, rating) {
+    event.stopPropagation();
+    
+    if (!currentUser) {
+        showNotification('Please login to add favorites', 'info');
+        showLoginModal();
+        return;
+    }
+    
+    if (!currentUser.favorites) {
+        currentUser.favorites = [];
+    }
+    
+    const isFavorite = currentUser.favorites.some(fav => fav.id === movieId);
+    
+    if (isFavorite) {
+        // Remove from favorites
+        currentUser.favorites = currentUser.favorites.filter(fav => fav.id !== movieId);
+        event.target.classList.remove('active');
+        event.target.innerHTML = '<i class="far fa-heart"></i>';
+        showNotification(`Removed "${title}" from favorites`, 'info');
+    } else {
+        // Add to favorites
+        currentUser.favorites.push({
+            id: movieId,
+            title: title,
+            img: img,
+            rating: rating,
+            addedDate: new Date().toISOString()
+        });
+        event.target.classList.add('active');
+        event.target.innerHTML = '<i class="fas fa-heart"></i>';
+        showNotification(`Added "${title}" to favorites`, 'success');
+    }
+    
+    // Save to localStorage
+    saveUserData();
+    
+    // Update UI if user panel is open
+    if (document.getElementById('userPanelModal').style.display === 'flex') {
+        loadFavorites();
+        updateUserStats();
+    }
+}
+
+function loadFavorites() {
+    const container = document.getElementById('favoritesList');
+    const emptyState = document.getElementById('emptyFavorites');
+    
+    if (!currentUser || !currentUser.favorites || currentUser.favorites.length === 0) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+    
+    container.innerHTML = currentUser.favorites.map(movie => `
+        <div class="movie-item">
+            <img src="${movie.img || getDefaultPoster(movie.title)}" alt="${movie.title}" 
+                 onerror="this.src='https://via.placeholder.com/150x200/1a1a2e/ffffff?text=Movie'">
+            <div class="movie-info-small">
+                <h4>${movie.title.length > 20 ? movie.title.substring(0, 20) + '...' : movie.title}</h4>
+                <p>⭐ ${movie.rating || 'N/A'}</p>
+            </div>
+            <div class="movie-actions">
+                <button class="movie-action-btn" onclick="addFavoriteToWatchlist(event, ${movie.id})" title="Add to watchlist">
+                    <i class="fas fa-bookmark"></i>
+                </button>
+                <button class="movie-action-btn remove" onclick="removeFromFavorites(event, ${movie.id})" title="Remove">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+    
+    container.style.display = 'grid';
+    emptyState.style.display = 'none';
+}
+
+function addFavoriteToWatchlist(event, movieId) {
+    event.stopPropagation();
+    
+    const movie = currentUser.favorites.find(fav => fav.id === movieId);
+    if (!movie) return;
+    
+    if (!currentUser.watchlist) currentUser.watchlist = [];
+    
+    // Check if already in watchlist
+    if (!currentUser.watchlist.some(item => item.id === movieId)) {
+        currentUser.watchlist.push({
+            id: movie.id,
+            title: movie.title,
+            img: movie.img,
+            rating: movie.rating,
+            year: movie.year,
+            addedDate: new Date().toISOString()
+        });
+        
+        saveUserData();
+        loadWatchlist();
+        updateUserStats();
+        
+        showNotification(`Added "${movie.title}" to watchlist`, 'success');
+    } else {
+        showNotification(`"${movie.title}" is already in your watchlist`, 'info');
+    }
+}
+
+function removeFromFavorites(event, movieId) {
+    event.stopPropagation();
+    
+    const movie = currentUser.favorites.find(fav => fav.id === movieId);
+    if (!movie) return;
+    
+    currentUser.favorites = currentUser.favorites.filter(fav => fav.id !== movieId);
+    
+    saveUserData();
+    loadFavorites();
+    updateUserStats();
+    
+    showNotification(`Removed "${movie.title}" from favorites`, 'info');
+}
+
+function clearFavorites() {
+    if (!currentUser || !currentUser.favorites || currentUser.favorites.length === 0) {
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to remove all ${currentUser.favorites.length} favorites?`)) {
+        currentUser.favorites = [];
+        saveUserData();
+        loadFavorites();
+        updateUserStats();
+        showNotification('Favorites cleared', 'info');
+    }
+}
+
+// ===== RATINGS FUNCTIONS =====
+
+function rateMovie(event, movieId, rating, title) {
+    event.stopPropagation();
+    
+    if (!currentUser) {
+        showNotification('Please login to rate movies', 'info');
+        showLoginModal();
+        return;
+    }
+    
+    if (!currentUser.ratings) {
+        currentUser.ratings = {};
+    }
+    
+    // Update rating
+    currentUser.ratings[movieId] = rating;
+    
+    // Update stars display
+    updateMovieRatingStars(movieId, rating);
+    
+    // Update preferred genres based on rating
+    updatePreferredGenres();
+    
+    // Save to localStorage
+    saveUserData();
+    
+    // Update UI if user panel is open
+    if (document.getElementById('userPanelModal').style.display === 'flex') {
+        loadRatings();
+        updateUserStats();
+    }
+    
+    showNotification(`Rated "${title}" ${rating} stars`, 'success');
+}
+
+function updateMovieRatingStars(movieId, rating) {
+    const starsContainer = document.querySelector(`.movie-card[data-movie-id="${movieId}"] .quick-rating`);
+    if (starsContainer) {
+        const stars = starsContainer.querySelectorAll('.quick-star');
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+}
+
+function loadRatings() {
+    const container = document.getElementById('ratingsList');
+    const emptyState = document.getElementById('emptyRatings');
+    
+    if (!currentUser || !currentUser.ratings || Object.keys(currentUser.ratings).length === 0) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+    
+    const ratings = Object.entries(currentUser.ratings);
+    
+    container.innerHTML = ratings.map(([movieId, rating]) => {
+        const movie = getMovieById(movieId);
+        if (!movie) return '';
+        
+        return `
+            <div class="movie-item">
+                <img src="${movie.img || getDefaultPoster(movie.title)}" alt="${movie.title}" 
+                     onerror="this.src='https://via.placeholder.com/150x200/1a1a2e/ffffff?text=Movie'">
+                <div class="movie-info-small">
+                    <h4>${movie.title.length > 20 ? movie.title.substring(0, 20) + '...' : movie.title}</h4>
+                    <p>Your rating: ${getStarRating(rating)}</p>
+                </div>
+                <div class="movie-actions">
+                    <button class="movie-action-btn" onclick="updateRating(event, ${movieId}, '${movie.title}')" title="Change rating">
+                        <i class="fas fa-star"></i>
+                    </button>
+                    <button class="movie-action-btn remove" onclick="removeRating(event, ${movieId})" title="Remove rating">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.style.display = 'grid';
+    emptyState.style.display = 'none';
+}
+
+function updateRating(event, movieId, title) {
+    event.stopPropagation();
+    
+    const currentRating = currentUser.ratings[movieId] || 0;
+    const newRating = parseInt(prompt(`Update rating for "${title}" (1-5):`, currentRating));
+    
+    if (newRating && newRating >= 1 && newRating <= 5) {
+        rateMovie(event, movieId, newRating, title);
+    }
+}
+
+function removeRating(event, movieId) {
+    event.stopPropagation();
+    
+    const movie = getMovieById(movieId);
+    if (!movie) return;
+    
+    delete currentUser.ratings[movieId];
+    
+    saveUserData();
+    loadRatings();
+    updateUserStats();
+    
+    showNotification(`Removed rating for "${movie.title}"`, 'info');
+}
+
+function clearRatings() {
+    if (!currentUser || !currentUser.ratings || Object.keys(currentUser.ratings).length === 0) {
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to remove all ${Object.keys(currentUser.ratings).length} ratings?`)) {
+        currentUser.ratings = {};
+        saveUserData();
+        loadRatings();
+        updateUserStats();
+        showNotification('All ratings cleared', 'info');
+    }
+}
+
+function getStarRating(rating) {
+    let stars = '';
+    for (let i = 1; i <= 5; i++) {
+        stars += i <= rating ? '★' : '☆';
+    }
+    return stars;
+}
+
+function updatePreferredGenres() {
+    if (!currentUser || !currentUser.ratings || Object.keys(currentUser.ratings).length < 3) {
+        return;
+    }
+    
+    // This is a simplified version - in production, you'd analyze movie genres
+    if (!currentUser.preferred_genres || currentUser.preferred_genres.length === 0) {
+        currentUser.preferred_genres = ['Action', 'Drama', 'Sci-Fi'];
+    }
+}
+
+// ===== PREFERENCES FUNCTIONS =====
+
+function loadPreferences() {
+    const container = document.getElementById('preferredGenres');
+    const quizInfo = document.getElementById('quizProfileInfo');
+    const notifyCheckbox = document.getElementById('notifyWatchlist');
+    const autoAddCheckbox = document.getElementById('autoAddSimilar');
+    
+    // Load preferred genres
+    if (currentUser && currentUser.preferred_genres && currentUser.preferred_genres.length > 0) {
+        container.innerHTML = currentUser.preferred_genres.map(genre => `
+            <span class="genre-tag">${genre}</span>
+        `).join('');
+    } else {
+        container.innerHTML = '<p style="color: #b0b7c3; font-size: 14px;">No preferences yet</p>';
+    }
+    
+    // Load quiz profile
+    if (currentUser && currentUser.quiz_profile) {
+        const profile = currentUser.quiz_profile;
+        quizInfo.innerHTML = `
+            <p><strong>${profile.profileType.replace('_', ' ').toUpperCase()}</strong></p>
+            <p style="font-size: 14px; margin-top: 5px;">${profile.description || 'Based on your quiz answers'}</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px;">
+                ${profile.tags ? profile.tags.map(tag => `
+                    <span style="background: rgba(0, 229, 255, 0.1); padding: 3px 8px; border-radius: 12px; font-size: 11px;">
+                        ${tag}
+                    </span>
+                `).join('') : ''}
+            </div>
+        `;
+    }
+    
+    // Load settings
+    if (currentUser && currentUser.settings) {
+        if (notifyCheckbox) notifyCheckbox.checked = currentUser.settings.notifyWatchlist || true;
+        if (autoAddCheckbox) autoAddCheckbox.checked = currentUser.settings.autoAddSimilar || true;
+    }
+}
+
+// ===== FORM HANDLERS =====
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    
+    clearFormErrors('loginModal');
+    
+    if (!email) {
+        showError('loginEmailError', 'Email is required');
+        return;
+    }
+    
+    if (!password) {
+        showError('loginPasswordError', 'Password is required');
+        return;
+    }
+    
+    const submitBtn = this.querySelector('.form-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Logging in...';
+    submitBtn.disabled = true;
+    
+    try {
+        const result = login(email, password);
+        
+        if (result.success) {
+            showSuccess('loginSuccess', 'Login successful!');
+            
+            setTimeout(() => {
+                updateUIForUser();
+                closeModal('loginModal');
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                
+                // Reset form
+                document.getElementById('loginEmail').value = '';
+                document.getElementById('loginPassword').value = '';
+                
+                // Show welcome notification
+                showNotification(`Welcome back, ${currentUser.name}!`, 'success');
+                
+                // Refresh recommendations
+                fetchRecommendations();
+            }, 1000);
+        } else {
+            showError('loginPasswordError', result.message);
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        showError('loginPasswordError', 'An error occurred. Please try again.');
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+});
+
+document.getElementById('registerForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('registerName').value.trim();
+    const email = document.getElementById('registerEmail').value.trim();
+    const password = document.getElementById('registerPassword').value;
+    const confirmPassword = document.getElementById('registerConfirmPassword').value;
+    
+    clearFormErrors('registerModal');
+    
+    // Validation
+    let isValid = true;
+    
+    if (!name) {
+        showError('registerNameError', 'Name is required');
+        isValid = false;
+    }
+    
+    if (!email) {
+        showError('registerEmailError', 'Email is required');
+        isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+        showError('registerEmailError', 'Please enter a valid email');
+        isValid = false;
+    }
+    
+    if (!password) {
+        showError('registerPasswordError', 'Password is required');
+        isValid = false;
+    } else if (password.length < 6) {
+        showError('registerPasswordError', 'Password must be at least 6 characters');
+        isValid = false;
+    }
+    
+    if (!confirmPassword) {
+        showError('registerConfirmError', 'Please confirm your password');
+        isValid = false;
+    } else if (password !== confirmPassword) {
+        showError('registerConfirmError', 'Passwords do not match');
+        isValid = false;
+    }
+    
+    if (!isValid) {
+        return;
+    }
+    
+    const submitBtn = this.querySelector('.form-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Creating account...';
+    submitBtn.disabled = true;
+    
+    try {
+        const result = register(name, email, password, confirmPassword);
+        
+        if (result.success) {
+            showSuccess('registerSuccess', 'Account created successfully!');
+            
+            setTimeout(() => {
+                updateUIForUser();
+                closeModal('registerModal');
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                
+                // Reset form
+                document.getElementById('registerName').value = '';
+                document.getElementById('registerEmail').value = '';
+                document.getElementById('registerPassword').value = '';
+                document.getElementById('registerConfirmPassword').value = '';
+                
+                // Show welcome notification
+                showNotification(`Welcome to MovieMind, ${currentUser.name}!`, 'success');
+                
+                // Refresh recommendations
+                fetchRecommendations();
+            }, 1000);
+        } else {
+            showError('registerEmailError', result.message);
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        showError('registerEmailError', 'An error occurred. Please try again.');
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+});
+
+// ===== MOVIE FUNCTIONS =====
+const defaultMovies = [
+    { 
+        id: 1,
+        title: "Inception", 
+        genre: "Action • Sci-Fi", 
+        rating: 8.8, 
+        img: "https://image.tmdb.org/t/p/w500/qmDpIHrmpJINaRKAfWQfftjCdyi.jpg",
+        year: 2010
+    },
+    { 
+        id: 2,
+        title: "Interstellar", 
+        genre: "Sci-Fi • Drama", 
+        rating: 8.6, 
+        img: "https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg",
+        year: 2014
+    },
+    { 
+        id: 3,
+        title: "The Dark Knight", 
+        genre: "Action • Crime", 
+        rating: 9.0, 
+        img: "https://image.tmdb.org/t/p/w500/kqjL17yufvn9OVLyXYpvtyrFfak.jpg",
+        year: 2008
+    },
+    { 
+        id: 4,
+        title: "Fight Club", 
+        genre: "Drama • Thriller", 
+        rating: 8.7, 
+        img: "https://image.tmdb.org/t/p/w500/6oom5QYQ2yQTMJIbnvbkBL9cHo6.jpg",
+        year: 1999
+    },
+    { 
+        id: 5,
+        title: "The Godfather", 
+        genre: "Crime • Drama", 
+        rating: 9.2, 
+        img: "https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
+        year: 1972
+    }
+];
+
+function renderMovies(list) {
+    movieContainer.innerHTML = "";
+    
+    if (!list || list.length === 0) {
+        movieContainer.innerHTML = `
+            <div class="no-results" style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                <i class="fas fa-search" style="font-size: 60px; opacity: 0.3; margin-bottom: 20px;"></i>
+                <h3 style="color: #00e5ff; margin-bottom: 10px;">No Movies Found</h3>
+                <p style="opacity: 0.7;">Try a different search term or browse popular movies</p>
+                <button onclick="fetchRecommendations()" style="margin-top: 20px; padding: 10px 25px; background: #00e5ff; color: black; border: none; border-radius: 25px; cursor: pointer; font-weight: 600;">
+                    Show Popular Movies
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    list.forEach(movie => {
+        const isInWatchlist = currentUser && currentUser.watchlist ? 
+            currentUser.watchlist.some(item => item.id === movie.id) : false;
+        
+        const isFavorite = currentUser && currentUser.favorites ? 
+            currentUser.favorites.some(fav => fav.id === movie.id) : false;
+        
+        const userRating = currentUser && currentUser.ratings ? 
+            currentUser.ratings[movie.id] : 0;
+        
+        const isWatched = currentUser && currentUser.watch_history ?
+            currentUser.watch_history.some(watched => watched.id === movie.id) : false;
+        
+        movieContainer.innerHTML += `
+            <div class="movie-card" data-movie-id="${movie.id}" onclick="addToWatchHistory(${JSON.stringify(movie).replace(/"/g, '&quot;')})">
+                ${isWatched ? '<div class="watchlist-status">Watched</div>' : ''}
+                <span class="rating">⭐ ${movie.rating}</span>
+                <img src="${movie.img}" alt="${movie.title}" onerror="this.src='https://via.placeholder.com/500x750/1a1a2e/ffffff?text=Movie'">
+                <div class="movie-info">
+                    <h3>${movie.title}</h3>
+                    <p>${movie.genre}</p>
+                    ${movie.year ? `<p style="font-size: 12px; opacity: 0.7; margin-top: 5px;">${movie.year}</p>` : ''}
+                    
+                    <div class="movie-actions-grid">
+                        <button class="action-btn watchlist ${isInWatchlist ? 'active' : ''}" 
+                                onclick="toggleWatchlist(event, ${movie.id}, '${movie.title.replace(/'/g, "\\'")}', '${movie.img || ''}', ${movie.rating || 0}, ${movie.year || 0})">
+                            <i class="${isInWatchlist ? 'fas' : 'far'} fa-bookmark"></i>
+                        </button>
+                        
+                        <button class="action-btn favorite ${isFavorite ? 'active' : ''}" 
+                                onclick="toggleFavorite(event, ${movie.id}, '${movie.title.replace(/'/g, "\\'")}', '${movie.img || ''}', ${movie.rating || 0})">
+                            <i class="${isFavorite ? 'fas' : 'far'} fa-heart"></i>
+                        </button>
+                        
+                        <div class="quick-rating">
+                            ${[1,2,3,4,5].map(star => `
+                                <span class="quick-star ${star <= userRating ? 'active' : ''}" 
+                                      onclick="rateMovie(event, ${movie.id}, ${star}, '${movie.title.replace(/'/g, "\\'")}')">
+                                    ★
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function getDefaultPoster(title) {
+    const posters = {
+        "Inception": "https://image.tmdb.org/t/p/w500/qmDpIHrmpJINaRKAfWQfftjCdyi.jpg",
+        "Interstellar": "https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg",
+        "The Dark Knight": "https://image.tmdb.org/t/p/w500/kqjL17yufvn9OVLyXYpvtyrFfak.jpg",
+        "Fight Club": "https://image.tmdb.org/t/p/w500/6oom5QYQ2yQTMJIbnvbkBL9cHo6.jpg",
+        "The Godfather": "https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg"
+    };
+    return posters[title] || "https://via.placeholder.com/500x750/1a1a2e/ffffff?text=MovieMind";
+}
+
+function getMovieById(movieId) {
+    // Find movie in default movies or fetched movies
+    const allMovies = [...defaultMovies, ...movies];
+    return allMovies.find(m => m.id == movieId) || {
+        title: `Movie ${movieId}`,
+        img: 'https://via.placeholder.com/150x200/1a1a2e/ffffff?text=Movie',
+        rating: 7.5,
+        year: 2023
+    };
+}
+
+async function fetchRecommendations() {
+    document.getElementById('sectionTitle').textContent = '🔥 Trending Movies';
+    
+    // Show loading
+    movieContainer.innerHTML = `
+        <div class="loading" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+            <i class="fas fa-film fa-spin" style="font-size: 40px; color: #00e5ff;"></i>
+            <p style="margin-top: 15px; opacity: 0.7;">Loading recommendations...</p>
+        </div>
+    `;
+    
+    try {
+        // Try backend first
+        const response = await fetch('http://127.0.0.1:5000/recommend/popular');
+        if (!response.ok) throw new Error('Backend not available');
+        
+        const data = await response.json();
+        movies = data.recommendations || [];
+        
+        const apiMovies = movies.map(m => ({
+            id: m.id || m.movieId,
+            title: m.title,
+            genre: m.genres || m.genre || "Unknown",
+            rating: m.rating || 8.0,
+            img: m.poster || m.img || getDefaultPoster(m.title),
+            year: m.year || ''
+        }));
+        
+        renderMovies(apiMovies);
+    } catch (error) {
+        console.log('Using default movies:', error);
+        // Fallback to local movies
+        movies = defaultMovies;
+        renderMovies(movies);
+    }
+}
+
+async function performSearch(query) {
+    if (!query || query.trim() === '') {
+        fetchRecommendations();
+        return;
+    }
+    
+    document.getElementById('sectionTitle').textContent = `🔍 Search Results for "${query}"`;
+    
+    // Show loading
+    movieContainer.innerHTML = `
+        <div class="loading" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+            <i class="fas fa-search fa-spin" style="font-size: 40px; color: #00e5ff;"></i>
+            <p style="margin-top: 15px; opacity: 0.7;">Searching for "${query}"...</p>
+        </div>
+    `;
+    
+    try {
+        // Try backend search
+        const response = await fetch(`http://127.0.0.1:5000/search?query=${encodeURIComponent(query)}`);
+        if (!response.ok) throw new Error('Backend search failed');
+        
+        const data = await response.json();
+        const moviesArray = data.results || [];
+        
+        const apiMovies = moviesArray.map(m => ({
+            id: m.id || m.movieId,
+            title: m.title,
+            genre: m.genres || m.genre || "Unknown",
+            rating: m.rating || 8.0,
+            img: m.poster || m.img || getDefaultPoster(m.title),
+            year: m.year || ''
+        }));
+        
+        renderMovies(apiMovies);
+        
+        if (apiMovies.length === 0) {
+            document.getElementById('sectionTitle').textContent = `🔍 No results for "${query}"`;
+        }
+    } catch (error) {
+        console.log('Using local search:', error);
+        // Fallback to local search
+        const filtered = defaultMovies.filter(movie =>
+            movie.title.toLowerCase().includes(query.toLowerCase()) ||
+            movie.genre.toLowerCase().includes(query.toLowerCase())
+        );
+        
+        renderMovies(filtered);
+        
+        if (filtered.length === 0) {
+            document.getElementById('sectionTitle').textContent = `🔍 No results for "${query}"`;
+        }
+    }
+}
+
+function filterByGenre(genre) {
+    // Update active button
+    document.querySelectorAll('nav ul li').forEach(btn => {
+        btn.style.opacity = "0.85";
+        btn.style.color = "";
+    });
+    event.target.style.opacity = "1";
+    event.target.style.color = "#00e5ff";
+    
+    if (genre === 'All') {
+        fetchRecommendations();
+    } else {
+        const filtered = defaultMovies.filter(m => m.genre.includes(genre));
+        if (filtered.length > 0) {
+            renderMovies(filtered);
+            document.getElementById('sectionTitle').textContent = `🎬 ${genre} Movies`;
+        } else {
+            performSearch(genre);
+        }
+    }
+}
+
+function getPersonalizedRecommendations() {
+    if (!currentUser) {
+        showNotification('Please login to get personalized recommendations!', 'info');
+        showLoginModal();
+        return;
+    }
+    
+    showNotification(`Getting personalized recommendations for ${currentUser.name}...`, 'info');
+    fetchRecommendations();
+}
+
+// ===== QUIZ SYSTEM =====
+const quizQuestions = [
+    {
+        id: 1,
+        question: "What's your current mood?",
+        description: "Choose the vibe that matches how you're feeling right now",
+        type: "mood",
+        options: [
+            {
+                id: "mood_action",
+                text: "Adventurous & Excited",
+                desc: "Ready for action and excitement",
+                icon: "⚡",
+                tags: ["Action", "Adventure", "Thriller"],
+                weights: { "Action": 0.9, "Adventure": 0.8, "Thriller": 0.7 }
+            },
+            {
+                id: "mood_relaxed",
+                text: "Chill & Relaxed",
+                desc: "Want something easy-going",
+                icon: "🌊",
+                tags: ["Comedy", "Romance", "Drama"],
+                weights: { "Comedy": 0.9, "Romance": 0.7, "Drama": 0.6 }
+            },
+            {
+                id: "mood_thoughtful",
+                text: "Thoughtful & Reflective",
+                desc: "In the mood for something deep",
+                icon: "🤔",
+                tags: ["Drama", "Mystery", "Biography"],
+                weights: { "Drama": 0.9, "Mystery": 0.8, "Biography": 0.7 }
+            },
+            {
+                id: "mood_escape",
+                text: "Need an Escape",
+                desc: "Want to forget reality for a while",
+                icon: "✨",
+                tags: ["Fantasy", "Sci-Fi", "Animation"],
+                weights: { "Fantasy": 0.9, "Sci-Fi": 0.8, "Animation": 0.7 }
+            }
+        ]
+    },
+    {
+        id: 2,
+        question: "What time period interests you?",
+        description: "Which era captures your imagination?",
+        type: "era",
+        options: [
+            {
+                id: "era_modern",
+                text: "Modern Day",
+                desc: "Contemporary stories",
+                icon: "🏙️",
+                tags: ["Contemporary", "Drama", "Thriller"],
+                yearRange: [2000, 2024]
+            },
+            {
+                id: "era_90s",
+                text: "90s & 2000s",
+                desc: "Nostalgic classics",
+                icon: "📼",
+                tags: ["90s", "Classic", "Nostalgic"],
+                yearRange: [1990, 2009]
+            },
+            {
+                id: "era_old",
+                text: "Classic Cinema",
+                desc: "Timeless masterpieces",
+                icon: "🎞️",
+                tags: ["Classic", "Drama", "Romance"],
+                yearRange: [1940, 1989]
+            },
+            {
+                id: "era_future",
+                text: "Future & Sci-Fi",
+                desc: "Futuristic worlds",
+                icon: "🚀",
+                tags: ["Sci-Fi", "Futuristic", "Fantasy"],
+                yearRange: [2020, 2030]
+            }
+        ]
+    }
+];
+
+const movieProfiles = {
+    action_lover: {
+        name: "Action Enthusiast",
+        description: "You love adrenaline-pumping action, thrilling sequences, and epic adventures. Your ideal movies keep you on the edge of your seat!",
+        preferredGenres: ["Action", "Adventure", "Thriller", "Sci-Fi"],
+        tags: ["High-Octane", "Adventure", "Thrilling"],
+        icon: "💥"
+    },
+    thoughtful_thinker: {
+        name: "Thoughtful Thinker",
+        description: "You appreciate deep stories, complex characters, and meaningful themes. You enjoy movies that make you reflect.",
+        preferredGenres: ["Drama", "Mystery", "Biography", "Thriller"],
+        tags: ["Deep", "Meaningful", "Complex"],
+        icon: "🤔"
+    },
+    comfort_seeker: {
+        name: "Comfort Seeker",
+        description: "You enjoy feel-good movies, heartwarming stories, and light entertainment. Perfect for relaxing and unwinding.",
+        preferredGenres: ["Comedy", "Romance", "Animation", "Family"],
+        tags: ["Feel-Good", "Heartwarming", "Light"],
+        icon: "😊"
+    },
+    fantasy_explorer: {
+        name: "Fantasy Explorer",
+        description: "You love escaping to other worlds, magical realms, and futuristic settings. Imagination knows no bounds!",
+        preferredGenres: ["Fantasy", "Sci-Fi", "Animation", "Adventure"],
+        tags: ["Imaginative", "Escapist", "Magical"],
+        icon: "✨"
+    },
+    genre_explorer: {
+        name: "Genre Explorer",
+        description: "You're open to all types of movies and enjoy discovering different genres and styles.",
+        preferredGenres: ["All"],
+        tags: ["Versatile", "Open-Minded", "Explorer"],
+        icon: "🌍"
+    }
+};
+
+function startQuiz() {
+    if (!currentUser) {
+        showNotification('Please login to save your quiz results!', 'info');
+        showLoginModal();
+        return;
+    }
+    
+    quizState = {
+        currentStep: 0,
+        answers: {},
+        profile: {},
+        quizStarted: true
+    };
+    
+    closeModal('loginModal');
+    closeModal('registerModal');
+    closeModal('userPanelModal');
+    showQuizStep(0);
+    document.getElementById('quizModal').style.display = 'flex';
+}
+
+function showQuizStep(stepIndex) {
+    const quizContainer = document.getElementById('quizContainer');
+    const question = quizQuestions[stepIndex];
+    
+    const progress = ((stepIndex + 1) / quizQuestions.length) * 100;
+    
+    quizContainer.innerHTML = `
+        <div class="quiz-step">
+            <div class="quiz-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${progress}%"></div>
+                </div>
+                <p style="font-size: 13px; opacity: 0.7;">Question ${stepIndex + 1} of ${quizQuestions.length}</p>
+            </div>
+            
+            <div class="quiz-question">
+                <h3>${question.question}</h3>
+                <p>${question.description}</p>
+            </div>
+            
+            <div class="quiz-options" id="quizOptions">
+                ${question.options.map((option, index) => `
+                    <div class="quiz-option" 
+                         onclick="selectQuizOption(${stepIndex}, ${index})"
+                         id="option_${stepIndex}_${index}">
+                        <div class="quiz-option-icon">${option.icon}</div>
+                        <div class="quiz-option-text">${option.text}</div>
+                        <div class="quiz-option-desc">${option.desc}</div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div class="quiz-navigation">
+                ${stepIndex > 0 ? `
+                    <button class="quiz-btn prev" onclick="prevQuizStep()">
+                        ← Previous
+                    </button>
+                ` : '<div></div>'}
+                
+                ${stepIndex < quizQuestions.length - 1 ? `
+                    <button class="quiz-btn next" onclick="nextQuizStep()" id="nextBtn" disabled>
+                        Next →
+                    </button>
+                ` : `
+                    <button class="quiz-btn next" onclick="calculateQuizResults()" id="nextBtn" disabled>
+                        See Results
+                    </button>
+                `}
+            </div>
+        </div>
+    `;
+    
+    if (quizState.answers[stepIndex] !== undefined) {
+        const selectedIndex = quizState.answers[stepIndex];
+        const optionElement = document.getElementById(`option_${stepIndex}_${selectedIndex}`);
+        if (optionElement) {
+            optionElement.classList.add('selected');
+            document.getElementById('nextBtn').disabled = false;
+        }
+    }
+}
+
+function selectQuizOption(questionIndex, optionIndex) {
+    const options = document.querySelectorAll(`#quizOptions .quiz-option`);
+    options.forEach(opt => opt.classList.remove('selected'));
+    
+    const selectedOption = document.getElementById(`option_${questionIndex}_${optionIndex}`);
+    selectedOption.classList.add('selected');
+    
+    quizState.answers[questionIndex] = optionIndex;
+    document.getElementById('nextBtn').disabled = false;
+}
+
+function nextQuizStep() {
+    if (quizState.currentStep < quizQuestions.length - 1) {
+        quizState.currentStep++;
+        showQuizStep(quizState.currentStep);
+    }
+}
+
+function prevQuizStep() {
+    if (quizState.currentStep > 0) {
+        quizState.currentStep--;
+        showQuizStep(quizState.currentStep);
+    }
+}
+
+function calculateQuizResults() {
+    const profile = analyzeQuizAnswers();
+    quizState.profile = profile;
+    showQuizResults(profile);
+}
+
+function analyzeQuizAnswers() {
+    const answers = quizState.answers;
+    let genreScores = {};
+    let tags = new Set();
+    
+    Object.keys(answers).forEach(questionIndex => {
+        const question = quizQuestions[questionIndex];
+        const answerIndex = answers[questionIndex];
+        const option = question.options[answerIndex];
+        
+        option.tags.forEach(tag => tags.add(tag));
+        
+        if (option.weights) {
+            Object.entries(option.weights).forEach(([genre, weight]) => {
+                genreScores[genre] = (genreScores[genre] || 0) + weight;
+            });
+        }
+    });
+    
+    const topGenres = Object.entries(genreScores)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([genre]) => genre);
+    
+    let profileType = "genre_explorer";
+    if (genreScores["Action"] >= 2.5 && genreScores["Adventure"] >= 2.5) {
+        profileType = "action_lover";
+    } else if (genreScores["Drama"] >= 2.0 && genreScores["Mystery"] >= 2.0) {
+        profileType = "thoughtful_thinker";
+    } else if (genreScores["Comedy"] >= 2.0 && genreScores["Romance"] >= 2.0) {
+        profileType = "comfort_seeker";
+    } else if (genreScores["Fantasy"] >= 2.0 && genreScores["Sci-Fi"] >= 2.0) {
+        profileType = "fantasy_explorer";
+    }
+    
+    const profileData = movieProfiles[profileType];
+    
+    return {
+        profileType: profileType,
+        topGenres: topGenres,
+        tags: Array.from(tags),
+        name: profileData.name,
+        description: profileData.description
+    };
+}
+
+function showQuizResults(profile) {
+    const profileData = movieProfiles[profile.profileType];
+    
+    document.getElementById('quizContainer').style.display = 'none';
+    document.getElementById('quizResults').style.display = 'block';
+    
+    document.getElementById('quizProfileText').innerHTML = `
+        <strong>${profileData.name}</strong><br>
+        ${profileData.description}
+    `;
+    
+    const tagsContainer = document.getElementById('quizTags');
+    const allTags = [...profile.tags, ...profileData.tags];
+    const uniqueTags = [...new Set(allTags)].slice(0, 6);
+    
+    tagsContainer.innerHTML = uniqueTags.map(tag => `
+        <span class="quiz-tag">${tag}</span>
+    `).join('');
+    
+    // Save quiz results to user profile
+    if (currentUser) {
+        currentUser.quiz_profile = profile;
+        currentUser.preferred_genres = profile.topGenres;
+        
+        // Auto-add recommended movies to watchlist
+        autoAddQuizMoviesToWatchlist(profile);
+        
+        saveUserData();
+    }
+}
+
+function autoAddQuizMoviesToWatchlist(profile) {
+    if (!currentUser || !currentUser.settings?.autoAddSimilar) return;
+    
+    // This would call your backend to get quiz-based recommendations
+    // For now, we'll just show a notification
+    showNotification(`Adding ${profile.topGenres.join(', ')} movies to your watchlist...`, 'info');
+    
+    // In a real app, you would make an API call here:
+    // fetch(`/recommend/quiz?genres=${profile.topGenres.join(',')}`).then(...)
+    
+    setTimeout(() => {
+        showNotification(`Added recommended movies to your watchlist!`, 'success');
+    }, 2000);
+}
+
+function getQuizRecommendations() {
+    if (!currentUser) {
+        showNotification('Please login to get quiz recommendations!', 'info');
+        return;
+    }
+    
+    showNotification('Getting quiz-based recommendations...', 'info');
+    closeModal('quizModal');
+    fetchRecommendations();
+}
+
+function restartQuiz() {
+    document.getElementById('quizResults').style.display = 'none';
+    document.getElementById('quizContainer').style.display = 'block';
+    quizState.currentStep = 0;
+    quizState.answers = {};
+    showQuizStep(0);
+}
+
+// ===== EVENT LISTENERS =====
+searchBox.addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    const query = this.value.trim();
+    
+    searchTimeout = setTimeout(() => {
+        if (query.length > 0) {
+            performSearch(query);
+        } else {
+            fetchRecommendations();
+        }
+    }, 500);
+});
+
+searchBox.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        if (query.length > 0) {
+            performSearch(query);
+        }
+    }
+});
+
+// Close modal when clicking outside
+window.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal')) {
+        e.target.style.display = 'none';
+    }
+});
+
+// Settings change listeners
+document.getElementById('notifyWatchlist')?.addEventListener('change', function(e) {
+    if (currentUser) {
+        currentUser.settings.notifyWatchlist = this.checked;
+        saveUserData();
+    }
+});
+
+document.getElementById('autoAddSimilar')?.addEventListener('change', function(e) {
+    if (currentUser) {
+        currentUser.settings.autoAddSimilar = this.checked;
+        saveUserData();
+    }
+});
+
+// ===== INITIALIZATION =====
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("🎬 MovieMind Initializing...");
+    
+    // Load user from localStorage
+    try {
+        const savedUser = localStorage.getItem('movieMindUser');
+        if (savedUser) {
+            currentUser = JSON.parse(savedUser);
+            console.log("User loaded:", currentUser.name);
+        }
+    } catch (e) {
+        console.error("Error loading user:", e);
+        localStorage.removeItem('movieMindUser');
+    }
+    
+    // Initialize UI
+    updateUIForUser();
+    
+    // Load initial movies
+    fetchRecommendations();
+    
+    console.log("✅ MovieMind Ready!");
+});
+</script>
+
+<footer>
+  © 2025 MovieMind | Designed by Shreeshal
+</footer>
+
+</body>
+</html>
