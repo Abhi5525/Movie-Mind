@@ -1,6 +1,9 @@
 from flask import Blueprint, jsonify, current_app, request
 from app.services.quiz_recommender import get_quiz_recommendations
-
+from app.models.movie import Movie
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
+from app.models.users import Favorite
+from app.database import db
 # Blueprints
 movies_bp = Blueprint('movies', __name__, url_prefix='/movies')
 recommendations_bp = Blueprint('recommendations', __name__, url_prefix='/recommendations')
@@ -11,58 +14,12 @@ recommendations_bp = Blueprint('recommendations', __name__, url_prefix='/recomme
 def get_all_movies():
     """
     Return all movies with pagination
-    ---
-    parameters:
-      - name: limit
-        in: query
-        type: integer
-        required: false
-        description: Number of movies per page (default 50)
-      - name: page
-        in: query
-        type: integer
-        required: false
-        description: Page number (default 1)
-    tags:
-      - Movies
-    responses:
-      200:
-        description: List of movies with pagination info
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            movies:
-              type: array
-              items:
-                type: object
-                properties:
-                  title:
-                    type: string
-                  genres:
-                    type: string
-                  director:
-                    type: string
-                  cast:
-                    type: array
-                    items:
-                      type: string
-                  plot:
-                    type: string
-                  keywords:
-                    type: string
-            total:
-              type: integer
-            page:
-              type: integer
-            limit:
-              type: integer
-      500:
-        description: Server error
+
     """
     store = current_app.config['MOVIE_STORE']
     movies = store.get_all_movies()
+    if not movies:
+      return jsonify({"error": "No movies loaded"}), 500
 
     limit = request.args.get('limit', 50, type=int)
     page = request.args.get('page', 1, type=int)
@@ -82,44 +39,7 @@ def get_all_movies():
 def get_movie(movie_id):
     """
     Get a single movie by ID
-    ---
-    parameters:
-      - name: movie_id
-        in: path
-        type: integer
-        required: true
-        description: ID of the movie to retrieve
-    tags:
-      - Movies
-    responses:
-      200:
-        description: Movie details retrieved successfully
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            movie:
-              type: object
-              properties:
-                title:
-                  type: string
-                genres:
-                  type: string
-                director:
-                  type: string
-                cast:
-                  type: array
-                  items:
-                    type: string
-                plot:
-                  type: string
-                keywords:
-                  type: string
-      404:
-        description: Movie not found
-      500:
-        description: Server error
+
     """
     store = current_app.config['MOVIE_STORE']
     movie = store.get_movie_by_id(movie_id)
@@ -136,32 +56,6 @@ def popular_movies():
     """
     Get top popular movies
     ---
-    parameters:
-      - name: top_n
-        in: query
-        type: integer
-        required: false
-        description: Number of top movies to return (default 10)
-    tags:
-      - Movies
-    responses:
-      200:
-        description: Top popular movies
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            recommendations:
-              type: array
-              items:
-                type: object
-            count:
-              type: integer
-            algorithm:
-              type: string
-      500:
-        description: Server error
     """
     recommender = current_app.config['RECOMMENDER']
     top_n = int(request.args.get('top_n', 10))
@@ -178,40 +72,7 @@ def popular_movies():
 def content_based_movies():
     """
     Content-based recommendations by movie title
-    ---
-    parameters:
-      - name: movie_title
-        in: query
-        type: string
-        required: true
-        description: Movie title to find similar movies
-      - name: top_n
-        in: query
-        type: integer
-        required: false
-        description: Number of recommendations to return (default 10)
-    tags:
-      - Movies
-    responses:
-      200:
-        description: List of content-based recommendations
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            recommendations:
-              type: array
-              items:
-                type: object
-            count:
-              type: integer
-            algorithm:
-              type: string
-      400:
-        description: Bad request, movie_title missing
-      500:
-        description: Server error
+  
     """
     movie_title = request.args.get('movie_title')
     if not movie_title:
@@ -233,42 +94,7 @@ def content_based_movies():
 def collaborative_recommendations():
     """
     Collaborative filtering recommendations for a user
-    ---
-    parameters:
-      - name: user_id
-        in: query
-        type: string
-        required: true
-        description: User ID to generate recommendations
-      - name: top_n
-        in: query
-        type: integer
-        required: false
-        description: Number of recommendations to return (default 10)
-    tags:
-      - Movies
-    responses:
-      200:
-        description: List of collaborative recommendations
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            recommendations:
-              type: array
-              items:
-                type: object
-            count:
-              type: integer
-            algorithm:
-              type: string
-            user_id:
-              type: string
-      400:
-        description: Bad request, user_id missing
-      500:
-        description: Server error
+    
     """
     user_id = request.args.get('user_id')
     if not user_id:
@@ -291,52 +117,8 @@ def collaborative_recommendations():
 def hybrid_recommendations_route():
     """
     Hybrid recommendations combining multiple algorithms
-    ---
-    parameters:
-      - name: user_id
-        in: query
-        type: string
-        required: false
-        description: User ID for user-based recommendations
-      - name: movie_title
-        in: query
-        type: string
-        required: false
-        description: Movie title for content-based recommendations
-      - name: genre
-        in: query
-        type: string
-        required: false
-        description: Genre-based recommendations
-      - name: top_n
-        in: query
-        type: integer
-        required: false
-        description: Number of recommendations to return (default 20)
-    tags:
-      - Movies
-    responses:
-      200:
-        description: List of hybrid recommendations
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            recommendations:
-              type: array
-              items:
-                type: object
-            count:
-              type: integer
-            algorithm:
-              type: string
-      400:
-        description: Bad request, at least one parameter required
-      500:
-        description: Server error
     """
-    user_id = request.args.get('user_id')
+    user_id = request.args.get('user_id')  # ← only from query
     movie_title = request.args.get('movie_title')
     genre = request.args.get('genre')
 
@@ -375,39 +157,6 @@ def genre_based_recommendations():
     """
     Get top movies for a specific genre
     ---
-    parameters:
-      - name: genre
-        in: query
-        type: string
-        required: true
-        description: Genre to get top movies for
-      - name: top_n
-        in: query
-        type: integer
-        required: false
-        description: Number of top movies to return (default 10)
-    tags:
-      - Movies
-    responses:
-      200:
-        description: List of genre-based recommendations
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            recommendations:
-              type: array
-              items:
-                type: object
-            count:
-              type: integer
-            algorithm:
-              type: string
-      400:
-        description: Bad request, genre missing
-      500:
-        description: Server error
     """
     genre = request.args.get('genre')
     if not genre:
@@ -429,56 +178,6 @@ def genre_based_recommendations():
 def quiz_recommendations():
     """
     Get quiz-based movie recommendations based on genres, tags, year, and user preferences
-    ---
-    parameters:
-      - name: genres
-        in: query
-        type: string
-        required: false
-        description: Comma-separated genres
-      - name: tags
-        in: query
-        type: string
-        required: false
-        description: Comma-separated tags
-      - name: year_start
-        in: query
-        type: integer
-        required: false
-        description: Start year for filtering
-      - name: year_end
-        in: query
-        type: integer
-        required: false
-        description: End year for filtering
-      - name: user_id
-        in: query
-        type: string
-        required: false
-        description: User ID for personalized recommendations
-      - name: limit
-        in: query
-        type: integer
-        required: false
-        description: Maximum number of recommendations (default 20)
-    tags:
-      - Movies
-    responses:
-      200:
-        description: Quiz-based recommendations
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            recommendations:
-              type: array
-              items:
-                type: object
-            count:
-              type: integer
-      500:
-        description: Server error
     """
     params = {
         "genres": request.args.get('genres', ''),
@@ -500,43 +199,6 @@ def analyze_movies():
     """
     Analyze movie database statistics: genres, years, ratings, directors
     ---
-    tags:
-      - Movies
-    responses:
-      200:
-        description: Statistics of the movie database
-        schema:
-          type: object
-          properties:
-            total_movies:
-              type: integer
-            unique_genres:
-              type: integer
-            top_genres:
-              type: object
-            year_range:
-              type: array
-              items:
-                type: integer
-            average_year:
-              type: integer
-            average_rating:
-              type: number
-            top_directors:
-              type: object
-            algorithm_info:
-              type: object
-              properties:
-                type:
-                  type: string
-                content_weight:
-                  type: number
-                collaborative_weight:
-                  type: number
-                similarity_metric:
-                  type: string
-      500:
-        description: Server error
     """
     try:
         store = current_app.config["MOVIE_STORE"]
@@ -587,3 +249,70 @@ def analyze_movies():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+    
+@recommendations_bp.route("/similar/<int:movie_id>", methods=["GET"])
+@jwt_required()
+def get_similar_movies(movie_id):
+    movie = Movie.query.get(movie_id)
+    if not movie:
+        return jsonify({"msg": "Movie not found"}), 404
+    
+    # Example: find movies with at least one matching genre
+    genres = movie.genres.split(",")
+    similar_movies = Movie.query.filter(Movie.id != movie_id, Movie.genres.ilike(f"%{genres[0]}%")).limit(10).all()
+    
+    return jsonify([m.to_dict() for m in similar_movies]), 200
+
+
+
+
+favorites_bp = Blueprint("favorites", __name__, url_prefix="/favorites")
+
+@favorites_bp.route("/", methods=["GET"])
+@jwt_required()
+def get_favorites():
+    user_id = get_jwt_identity()
+    favorites = Favorite.query.filter_by(user_id=user_id).all()
+    return jsonify([fav.to_dict() for fav in favorites])
+
+@favorites_bp.route("/toggle", methods=["POST"])
+@jwt_required()
+def toggle_favorite():
+    user_id = get_jwt_identity()
+    data = request.json
+    movie_id = data.get("movie_id")
+
+    if not movie_id:
+        return jsonify({"error": "movie_id required"}), 400
+
+    favorite = Favorite.query.filter_by(user_id=user_id, movie_id=movie_id).first()
+
+    if favorite:
+        # Remove
+        db.session.delete(favorite)
+        db.session.commit()
+        return jsonify({"message": "Removed from favorites", "movie_id": movie_id})
+    else:
+        # Add
+        new_fav = Favorite(
+            user_id=user_id,
+            movie_id=movie_id,
+            title=data.get("title"),
+            img=data.get("img"),
+            rating=data.get("rating"),
+            year=data.get("year")
+        )
+        db.session.add(new_fav)
+        db.session.commit()
+        return jsonify({"message": "Added to favorites", "movie": new_fav.to_dict()})
+    
+
+@favorites_bp.route("/clear", methods=["POST"])
+@jwt_required()
+def clear_favorites():
+    user_id = get_jwt_identity()
+    Favorite.query.filter_by(user_id=user_id).delete()
+    db.session.commit()
+    return jsonify({"message": "Favorites cleared"})

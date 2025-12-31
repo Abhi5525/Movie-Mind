@@ -6,6 +6,8 @@ __pycache__/
 *.pyc
 *.pdb
 
+/moviemind.db
+
 # Virtual environment
 venv/
 env/

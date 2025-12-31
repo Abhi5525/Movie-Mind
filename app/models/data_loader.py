@@ -1,25 +1,18 @@
-import pandas as pd
-import os
-
-
-DATA_PATH = os.path.join("data", "Movie.csv")
-
+from app.models.movie import Movie
 class MovieDataStore:
     def __init__(self):
         self.movies = []
-        self.load_movies()
 
     def load_movies(self):
-        if not os.path.exists(DATA_PATH):
-            raise FileNotFoundError(f"Data file not found at path: {DATA_PATH}")
-        df = pd.read_csv(DATA_PATH)
-        self.movies = df.to_dict(orient='records')
+        from app.models.movie import Movie  # if not already imported
+        self.movies = [m.to_dict() for m in Movie.query.all()]  # ✅ clean dict
 
     def get_all_movies(self):
+        if not self.movies:
+            self.load_movies()
         return self.movies
-    
+
     def get_movie_by_id(self, movie_id):
-        for movie in self.movies:
-            if int(movie['id']) == movie_id:
-                return movie
-        return None
+        from app.models.movie import Movie
+        movie = Movie.query.get(movie_id)
+        return movie.to_dict() if movie else None  # ✅ safe
