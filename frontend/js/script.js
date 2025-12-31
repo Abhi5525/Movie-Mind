@@ -837,13 +837,13 @@ function renderMovies(list) {
 
     // SAFE STRINGS
     const title = String(movie.title).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-    const img = movie.img || 'data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750"><rect width="500" height="750" fill="%230f0f1b"/><text x="50%" y="45%" fill="%2300e5ff" font-family="Arial" font-size="28" text-anchor="middle">MovieMind</text><text x="50%" y="55%" fill="white" font-family="Arial" font-size="20" text-anchor="middle">No Poster</text></svg>';
+    const imgSrc = movie.img || 'data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750"><rect width="500" height="750" fill="%230f0f1b"/><text x="50%" y="45%" fill="%2300e5ff" font-family="Arial" font-size="28" text-anchor="middle">MovieMind</text><text x="50%" y="55%" fill="white" font-family="Arial" font-size="20" text-anchor="middle">No Poster</text></svg>';
 
     return `
       <div class="movie-card" data-movie-id="${movie.id}" onclick="addToWatchHistory(${JSON.stringify(movie).replace(/"/g, '&quot;')})">
         ${isWatched ? '<div class="watchlist-status">Watched</div>' : ''}
         <span class="rating">⭐ ${movie.rating || 'N/A'}</span>
-        <img src="${img}" alt="${title}" onerror="this.src='data:image/svg+xml;charset=UTF-8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;500&quot; height=&quot;750&quot; viewBox=&quot;0 0 500 750&quot;><rect width=&quot;500&quot; height=&quot;750&quot; fill=&quot;%230f0f1b&quot;/><text x=&quot;50%&quot; y=&quot;45%&quot; fill=&quot;%2300e5ff&quot; font-family=&quot;Arial&quot; font-size=&quot;28&quot; text-anchor=&quot;middle&quot;>MovieMind</text><text x=&quot;50%&quot; y=&quot;55%&quot; fill=&quot;white&quot; font-family=&quot;Arial&quot; font-size=&quot;20&quot; text-anchor=&quot;middle&quot;>No Poster</text></svg>'">
+        <img src="${imgSrc}" alt="${movie.title}">
         <div class="movie-info">
           <h3>${title}</h3>
           <p>${movie.genres || 'Unknown Genre'}</p>
