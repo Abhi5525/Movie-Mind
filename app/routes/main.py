@@ -6,7 +6,7 @@ from datetime import datetime
 
 main_bp = Blueprint("main", __name__)
 
-@main_bp.route("/", methods = ['GET']) 
+@main_bp.route("/main", methods = ['GET']) 
 def home():
     """
     Home endpoint for MovieMind Recommendation API

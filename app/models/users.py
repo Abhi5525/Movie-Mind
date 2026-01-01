@@ -9,14 +9,17 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     join_date = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-
+    
+    # Add quiz profile fields to User
+    quiz_profile_type = db.Column(db.String(100))
+    quiz_taken_at = db.Column(db.DateTime)
+    
+    # Relationships
     watchlist = db.relationship('Watchlist', backref='user', lazy=True)
     history = db.relationship('WatchHistory', back_populates='user', lazy=True)
     favorites = db.relationship('Favorite', backref='user', lazy=True)
     ratings = db.relationship('UserRating', backref='user', lazy=True)
-
+    quiz_results = db.relationship('QuizResult', back_populates='user', lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -130,3 +133,48 @@ class Favorite(db.Model):
             "year": self.year,
             "addedDate": self.added_date.isoformat() if self.added_date else None
         }
+import json
+class QuizResult(db.Model):
+    __tablename__ = 'quiz_results'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    profile_type = db.Column(db.String(100), nullable=False)
+    profile_name = db.Column(db.String(200), nullable=False)
+    profile_description = db.Column(db.Text, nullable=False)
+    top_genres = db.Column(db.String(500), nullable=False)
+    tags = db.Column(db.String(1000), nullable=False)
+    quiz_answers = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Remove these - they belong in User model:
+    # quiz_profile_type = db.Column(db.String(100))  # ❌ REMOVE
+    # quiz_taken_at = db.Column(db.DateTime)         # ❌ REMOVE
+    
+    # Relationships
+    user = db.relationship('User', back_populates='quiz_results')
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "profile_type": self.profile_type,
+            "profile_name": self.profile_name,
+            "profile_description": self.profile_description,
+            "top_genres": json.loads(self.top_genres) if self.top_genres else [],
+            "tags": json.loads(self.tags) if self.tags else [],
+            "quiz_answers": json.loads(self.quiz_answers) if self.quiz_answers else {},
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+    
+    @classmethod
+    def from_data(cls, user_id, quiz_data):
+        """Create a QuizResult from quiz data"""
+        return cls(
+            user_id=user_id,
+            profile_type=quiz_data.get('profileType'),
+            profile_name=quiz_data.get('name'),
+            profile_description=quiz_data.get('description'),
+            top_genres=json.dumps(quiz_data.get('topGenres', [])),
+            tags=json.dumps(quiz_data.get('tags', [])),
+            quiz_answers=json.dumps(quiz_data.get('answers', {}))
+        )

@@ -26,5 +26,11 @@ class Movie(db.Model):
             "plot": self.plot,
             "keywords": self.keywords,
             "popularity": self.popularity,
-            "img": self.img or ""
+            "img": self._fix_image_url(self.img) 
         }
+    @staticmethod
+    def _fix_image_url(img):
+        img = img.strip()
+        if img and not img.startswith('http'):
+            return f"https://image.tmdb.org/t/p/w500{img}"
+        return img
