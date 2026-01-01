@@ -15,22 +15,25 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.9);
       z-index: 1000;
       justify-content: center;
       align-items: center;
+       backdrop-filter: blur(10px); /* Add blur effect */
     }
 
     .modal-content {
-      background: linear-gradient(145deg, #0f1520, #1a1f2e);
-      padding: 40px;
-      border-radius: 20px;
-      width: 90%;
-      max-width: 450px;
-      position: relative;
-      border: 1px solid #00e5ff33;
-      box-shadow: 0 20px 50px rgba(0, 229, 255, 0.1);
-    }
+    background: linear-gradient(145deg, #1a2235, #232b40); /* Brighter gradient */
+    padding: 40px;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 900px; /* For user panel */
+    position: relative;
+    border: 2px solid #00e5ff; /* Brighter border */
+    box-shadow: 0 25px 60px rgba(0, 229, 255, 0.2); /* Brighter shadow */
+    animation: modalSlideIn 0.3s ease;
+}
+
 
     .close-modal {
       position: absolute;
@@ -145,6 +148,7 @@
       max-height: 85vh;
       overflow-y: auto;
     }
+    
 
     .user-panel {
       display: none;
@@ -253,10 +257,40 @@
       display: none;
     }
 
-    .panel-content.active {
-      display: block;
-    }
+.panel-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
 
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #b0b7c3;
+}
+
+.empty-state i {
+    font-size: 40px;
+    color: #2a2f3d;
+    margin-bottom: 15px;
+}
+
+.empty-state h4 {
+    color: #b0b7c3;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    font-size: 14px;
+    opacity: 0.8;
+}
     .movie-list {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -418,16 +452,17 @@
       margin-left: 10px;
     }
 
-    @keyframes slideIn {
-      from {
-        transform: translateX(100%);
+    
+@keyframes modalSlideIn {
+    from {
         opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
+        transform: translateY(-30px);
     }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
     /* NAVBAR */
     nav {

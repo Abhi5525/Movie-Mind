@@ -250,6 +250,8 @@ def test_route():
             "/api/recommendations/collaborative"
         ]
     })
+
+
 @recommendations_bp.route("/similar/<int:movie_id>", methods=["GET"])
 @jwt_required()
 def get_similar_movies(movie_id):

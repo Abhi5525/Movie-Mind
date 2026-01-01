@@ -8,6 +8,8 @@ import json
 
 # Blueprints
 movies_bp = Blueprint('movies', __name__, url_prefix='/movies')
+favorites_bp = Blueprint("favorites", __name__, url_prefix="/favorites")
+
 
 
 # ===== MOVIE ROUTES =====
@@ -110,19 +112,24 @@ def analyze_movies():
     
 
 
-favorites_bp = Blueprint("favorites", __name__, url_prefix="/favorites")
 
 @favorites_bp.route("/", methods=["GET"])
 @jwt_required()
 def get_favorites():
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+        
     favorites = Favorite.query.filter_by(user_id=user_id).all()
     return jsonify([fav.to_dict() for fav in favorites])
+
+
 
 @favorites_bp.route("/toggle", methods=["POST"])
 @jwt_required()
 def toggle_favorite():
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+        
     data = request.json
     movie_id = data.get("movie_id")
 
@@ -154,7 +161,9 @@ def toggle_favorite():
 @favorites_bp.route("/clear", methods=["POST"])
 @jwt_required()
 def clear_favorites():
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+    
     Favorite.query.filter_by(user_id=user_id).delete()
     db.session.commit()
     return jsonify({"message": "Favorites cleared"})

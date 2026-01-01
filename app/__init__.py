@@ -1,8 +1,9 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from app.models.data_loader import MovieDataStore
+from app.models.users import User
 from app.services.recommender import MovieRecommender
-from .routes.movies import movies_bp
+from .routes.movies import movies_bp, favorites_bp
 from .routes.recommendations import recommendations_bp
 from .routes.main import main_bp
 from .routes.search import search_bp
@@ -12,6 +13,7 @@ from .routes.auth import auth_bp
 from .routes.quiz import quiz_bp
 from flask_jwt_extended import JWTManager
 from datetime import timedelta
+from flask_migrate import Migrate
 
 import os
 
@@ -36,6 +38,17 @@ def create_app():
     
     db.init_app(app)
     jwt = JWTManager(app)
+    @jwt.user_identity_loader
+    def user_identity_lookup(user):
+        """How to create identity from user object"""
+        return user
+    
+
+    @jwt.user_lookup_loader
+    def user_lookup_callback(_jwt_header, jwt_data):
+        """Load user from JWT token"""
+        identity = jwt_data["sub"]
+        return User.query.get(int(identity))
 
 
     # ✅ Register all blueprints with /api prefix
@@ -46,7 +59,9 @@ def create_app():
     app.register_blueprint(auth_bp)  # Auth specific prefix
     app.register_blueprint(user_bp)  # User specific prefix
     app.register_blueprint(quiz_bp)  # Quiz specific prefix
+    app.register_blueprint(favorites_bp)
     
+    migrate = Migrate(app, db)
     with app.app_context():
         db.create_all()
         store = MovieDataStore()

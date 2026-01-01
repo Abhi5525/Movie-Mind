@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,15 +11,16 @@
 
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<link rel="stylesheet" href="/static/css/styles.css">
-<script src="/static/js/script.js" defer></script>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <script src="/static/js/script.js"></script>
 </head>
+
 <body>
-  
+
   <!-- NAVBAR -->
   <nav>
     <h1 onclick="fetchRecommendations()">🎬 MovieMind</h1>
-    
+
     <div class="nav-right">
       <ul>
         <li data-genre="All" onclick="filterByGenre('All')">Home</li>
@@ -27,19 +29,21 @@
         <li data-genre="Sci-Fi" onclick="filterByGenre('Sci-Fi')">Sci-Fi</li>
         <li data-genre="Thriller" onclick="filterByGenre('Thriller')">Thriller</li>
       </ul>
-      
+
       <input type="text" class="search-box" id="searchBox" placeholder="Search movies..." />
-      
+
       <!-- Auth Buttons (shown when not logged in) -->
       <div class="auth-buttons" id="authButtons">
         <button class="auth-btn login-btn" onclick="showLoginModal()">Login</button>
         <button class="auth-btn register-btn" onclick="showRegisterModal()">Register</button>
       </div>
-      
       <!-- User Menu (shown when logged in) -->
       <div class="user-menu" id="userMenu">
-        <div class="user-avatar" id="userAvatar" onclick="showUserPanel()">U</div>
-        <span class="user-name" id="userName" onclick="showUserPanel()">User</span>
+        <div class="user-menu-item" onclick="showUserPanel()" tabindex="0" role="button" aria-label="Open user panel"
+          onkeypress="if(event.key === 'Enter') showUserPanel()">
+          <div class="user-avatar" id="userAvatar">U</div>
+          <!-- <span class="user-name" id="userName">User</span> -->
+        </div>
         <button class="logout-btn" onclick="logout()">Logout</button>
       </div>
     </div>
@@ -69,7 +73,7 @@
       </div>
     </div>
   </div>
-<!-- REGISTER MODAL -->
+  <!-- REGISTER MODAL -->
   <div id="registerModal" class="modal">
     <div class="modal-content">
       <span class="close-modal" onclick="closeModal('registerModal')">&times;</span>
@@ -92,7 +96,7 @@
         </div>
         <div class="form-group">
           <label>Confirm Password</label>
-            <input type="password" id="registerConfirmPassword" placeholder="Confirm your password" required>
+          <input type="password" id="registerConfirmPassword" placeholder="Confirm your password" required>
           <div class="error-message" id="registerConfirmError"></div>
         </div>
         <button type="submit" class="form-btn">Create Account</button>
@@ -110,7 +114,7 @@
   <div id="userPanelModal" class="modal">
     <div class="modal-content">
       <span class="close-modal" onclick="closeModal('userPanelModal')">&times;</span>
-      
+
       <div id="userPanel" class="user-panel">
         <div class="user-header">
           <div class="user-avatar-large" id="userAvatarLarge">U</div>
@@ -120,7 +124,7 @@
             <p style="font-size: 12px; margin-top: 5px;">Member since: <span id="memberSince">2024</span></p>
           </div>
         </div>
-        
+
         <div class="user-stats">
           <div class="stat-card" onclick="switchPanelTab('watchlist')">
             <div class="stat-number" id="watchlistCount">0</div>
@@ -150,7 +154,7 @@
             <div class="progress-fill" id="watchlistProgressBar" style="width: 0%"></div>
           </div>
         </div>
-        
+
         <div class="panel-tabs">
           <button class="panel-tab active" onclick="switchPanelTab('watchlist')">📝 Watchlist</button>
           <button class="panel-tab" onclick="switchPanelTab('watch-history')">📺 Watched</button>
@@ -158,12 +162,13 @@
           <button class="panel-tab" onclick="switchPanelTab('ratings')">⭐ Ratings</button>
           <button class="panel-tab" onclick="switchPanelTab('preferences')">🎯 Preferences</button>
         </div>
-        
+
         <!-- Watchlist Tab -->
         <div id="watchlist-panel" class="panel-content active">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h4 style="color: #00e5ff;">Your Movie Watchlist</h4>
-            <button onclick="clearWatchlist()" style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
+            <button onclick="clearWatchlist()"
+              style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
               Clear All
             </button>
           </div>
@@ -177,12 +182,13 @@
             <p style="font-size: 12px; margin-top: 10px;">Click the bookmark icon on movies to add them here</p>
           </div>
         </div>
-        
+
         <!-- Watch History Tab -->
         <div id="watch-history-panel" class="panel-content">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h4 style="color: #00e5ff;">Recently Watched Movies</h4>
-            <button onclick="clearWatchHistory()" style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
+            <button onclick="clearWatchHistory()"
+              style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
               Clear History
             </button>
           </div>
@@ -195,12 +201,13 @@
             <p>Start watching movies to see them here</p>
           </div>
         </div>
-        
+
         <!-- Favorites Tab -->
         <div id="favorites-panel" class="panel-content">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h4 style="color: #00e5ff;">Your Favorite Movies</h4>
-            <button onclick="clearFavorites()" style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
+            <button onclick="clearFavorites()"
+              style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
               Clear All
             </button>
           </div>
@@ -213,12 +220,13 @@
             <p>Click the heart icon on movies to add them here</p>
           </div>
         </div>
-        
+
         <!-- Ratings Tab -->
         <div id="ratings-panel" class="panel-content">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h4 style="color: #00e5ff;">Your Movie Ratings</h4>
-            <button onclick="clearRatings()" style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
+            <button onclick="clearRatings()"
+              style="padding: 5px 15px; background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid #ff6b6b; border-radius: 15px; cursor: pointer; font-size: 12px;">
               Clear All
             </button>
           </div>
@@ -231,37 +239,40 @@
             <p>Rate movies to see them here</p>
           </div>
         </div>
-        
+
         <!-- Update the preferences panel in userPanelModal -->
-<div id="preferences-panel" class="panel-content">
-    <h4 style="color: #00e5ff; margin-bottom: 20px;">Your Preferences</h4>
-    
-    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-        <h5 style="color: #00e5ff; margin-bottom: 10px;">Favorite Genres</h5>
-        <div class="genre-tags" id="preferredGenres">
-            <!-- Will be populated dynamically -->
-        </div>
-        <p style="font-size: 12px; color: #b0b7c3; margin-top: 10px;">Based on your ratings and watch history</p>
-    </div>
-    
-    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-        <h5 style="color: #00e5ff; margin-bottom: 10px;">Quiz Profile</h5>
-        <div id="quizProfileInfo" style="margin-bottom: 15px;">
-            <!-- Will be populated by updatePreferencesPanel() -->
-        </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button onclick="startQuiz()" style="padding: 10px 20px; background: #00e5ff; color: #000; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+        <div id="preferences-panel" class="panel-content">
+          <h4 style="color: #00e5ff; margin-bottom: 20px;">Your Preferences</h4>
+
+          <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h5 style="color: #00e5ff; margin-bottom: 10px;">Favorite Genres</h5>
+            <div class="genre-tags" id="preferredGenres">
+              <!-- Will be populated dynamically -->
+            </div>
+            <p style="font-size: 12px; color: #b0b7c3; margin-top: 10px;">Based on your ratings and watch history</p>
+          </div>
+
+          <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h5 style="color: #00e5ff; margin-bottom: 10px;">Quiz Profile</h5>
+            <div id="quizProfileInfo" style="margin-bottom: 15px;">
+              <!-- Will be populated by updatePreferencesPanel() -->
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button onclick="startQuiz()"
+                style="padding: 10px 20px; background: #00e5ff; color: #000; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
                 Take Movie Quiz
-            </button>
-            <button onclick="retakeQuiz()" style="padding: 10px 20px; background: transparent; border: 1px solid #00e5ff; color: #00e5ff; border-radius: 8px; cursor: pointer;">
+              </button>
+              <button onclick="retakeQuiz()"
+                style="padding: 10px 20px; background: transparent; border: 1px solid #00e5ff; color: #00e5ff; border-radius: 8px; cursor: pointer;">
                 Retake Quiz
-            </button>
-            <button onclick="clearQuizResults()" style="padding: 10px 20px; background: transparent; border: 1px solid #ff6b6b; color: #ff6b6b; border-radius: 8px; cursor: pointer;">
+              </button>
+              <button onclick="clearQuizResults()"
+                style="padding: 10px 20px; background: transparent; border: 1px solid #ff6b6b; color: #ff6b6b; border-radius: 8px; cursor: pointer;">
                 Clear Results
-            </button>
+              </button>
+            </div>
+          </div>
         </div>
-    </div>
-</div>
       </div>
     </div>
   </div>
@@ -270,28 +281,30 @@
   <div id="quizModal" class="modal">
     <div class="modal-content" style="max-width: 600px;">
       <span class="close-modal" onclick="closeModal('quizModal')">&times;</span>
-      
+
       <div id="quizContainer">
         <!-- Quiz content will be loaded here -->
       </div>
-      
+
       <div id="quizResults" style="display: none; text-align: center;">
         <div style="margin: 30px 0;">
           <i class="fas fa-film" style="font-size: 60px; color: #00e5ff; margin-bottom: 20px;"></i>
           <h2 style="color: #00e5ff; margin-bottom: 10px;">Your Movie Profile</h2>
           <p id="quizProfileText" style="opacity: 0.8; margin-bottom: 30px;"></p>
         </div>
-        
+
         <div style="background: rgba(0, 229, 255, 0.1); padding: 20px; border-radius: 15px; margin-bottom: 30px;">
           <h3 style="color: #00e5ff; margin-bottom: 15px;">🎬 Based on your answers:</h3>
           <div id="quizTags" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;"></div>
         </div>
-        
-        <button onclick="getQuizRecommendations()" class="form-btn" style="background: linear-gradient(90deg, #00e5ff, #00b8d4);">
+
+        <button onclick="getQuizRecommendations()" class="form-btn"
+          style="background: linear-gradient(90deg, #00e5ff, #00b8d4);">
           Get Your Movie Recommendations
         </button>
-        
-        <button onclick="restartQuiz()" style="margin-top: 15px; padding: 12px 24px; background: transparent; border: 1px solid #00e5ff; color: #00e5ff; border-radius: 10px; cursor: pointer; width: 100%;">
+
+        <button onclick="restartQuiz()"
+          style="margin-top: 15px; padding: 12px 24px; background: transparent; border: 1px solid #00e5ff; color: #00e5ff; border-radius: 10px; cursor: pointer; width: 100%;">
           Take Quiz Again
         </button>
       </div>
@@ -306,7 +319,8 @@
       <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
         <button onclick="getPersonalizedRecommendations()">Get Recommendations</button>
         <button onclick="startQuiz()" class="secondary">Take Movie Quiz</button>
-        <button onclick="showUserPanel()" class="secondary" style="background: linear-gradient(90deg, #ff6b6b, #ff8e8e); border: none; color: white;">
+        <button onclick="showUserPanel()" class="secondary"
+          style="background: linear-gradient(90deg, #ff6b6b, #ff8e8e); border: none; color: white;">
           <i class="fas fa-bookmark"></i> My Watchlist
         </button>
       </div>
@@ -320,9 +334,10 @@
     <!-- Movies will be loaded here dynamically -->
   </section>
 
-<footer>
-  © 2025 MovieMind | Designed by Shreeshal
-</footer>
+  <footer>
+    © 2025 MovieMind | Designed by Shreeshal
+  </footer>
 
 </body>
+
 </html>

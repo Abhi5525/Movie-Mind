@@ -5,7 +5,7 @@ from app.database import db
 import json
 from datetime import datetime
 
-quiz_bp = Blueprint('quiz', __name__)
+quiz_bp = Blueprint('quiz', __name__, url_prefix = "/quiz")
 
 
 # Add OPTIONS handler for CORS preflight
@@ -21,8 +21,9 @@ def save_quiz_result():
         return jsonify({}), 200
     
     try:
-        current_user = get_jwt_identity()
-        user_id = current_user.get('id')
+        user_id_str = get_jwt_identity()
+        user_id = int(user_id_str)  # Convert to int
+    
         
         if not user_id:
             return jsonify({"success": False, "error": "User not found"}), 401
@@ -34,31 +35,23 @@ def save_quiz_result():
         # Debug: print received data
         print("Received quiz data:", data)
         
-        # Validate required fields with fallbacks
-        profileType = data.get('profileType', 'genre_explorer')
-        name = data.get('name', 'Movie Enthusiast')
-        description = data.get('description', 'Loves all kinds of movies')
-        topGenres = data.get('topGenres', [])
-        tags = data.get('tags', [])
-        answers = data.get('answers', {})
+        # Validate required fields
+        required_fields = ['profileType', 'name', 'description', 'topGenres', 'tags', 'answers']
+        missing = [field for field in required_fields if field not in data]
+        if missing:
+            return jsonify({"success": False, "error": f"Missing fields: {missing}"}), 400
         
-        # Ensure lists are JSON serializable
-        if not isinstance(topGenres, list):
-            topGenres = []
-        if not isinstance(tags, list):
-            tags = []
-        if not isinstance(answers, dict):
-            answers = {}
         
         # Create quiz result
         quiz_result = QuizResult(
             user_id=user_id,
-            profile_type=profileType,
-            profile_name=name,
-            profile_description=description,
-            top_genres=json.dumps(topGenres),
-            tags=json.dumps(tags),
-            quiz_answers=json.dumps(answers)
+            profile_type=data['profileType'],
+            profile_name=data['name'],
+            profile_description=data['description'],
+            top_genres=json.dumps(data['topGenres']),
+            tags=json.dumps(data['tags']),
+            quiz_answers=json.dumps(data['answers']),
+            created_at=datetime.utcnow()  # Add this
         )
         
         db.session.add(quiz_result)
@@ -66,7 +59,7 @@ def save_quiz_result():
         # Update user's quiz profile
         user = User.query.get(user_id)
         if user:
-            user.quiz_profile_type = profileType
+            user.quiz_profile_type = data['profileType']
             user.quiz_taken_at = datetime.utcnow()
         
         db.session.commit()
@@ -89,8 +82,9 @@ def get_quiz_results():
     Get user's quiz results
     """
     try:
-        current_user = get_jwt_identity()
-        user_id = current_user.get('id')
+        user_id_str = get_jwt_identity()
+        user_id = int(user_id_str)  # Convert to int
+        
         
         quiz_results = QuizResult.query.filter_by(user_id=user_id)\
             .order_by(QuizResult.created_at.desc())\
@@ -118,8 +112,9 @@ def get_latest_quiz_result():
     Get user's latest quiz result
     """
     try:
-        current_user = get_jwt_identity()
-        user_id = current_user.get('id')
+        user_id_str = get_jwt_identity()
+        user_id = int(user_id_str)  # Convert to int
+        
         
         latest_result = QuizResult.query\
             .filter_by(user_id=user_id)\
@@ -142,6 +137,7 @@ def get_latest_quiz_result():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+
 @quiz_bp.route('/clear', methods=['DELETE'])
 @jwt_required()
 def clear_quiz_results():
@@ -149,8 +145,8 @@ def clear_quiz_results():
     Clear user's quiz results
     """
     try:
-        current_user = get_jwt_identity()
-        user_id = current_user.get('id')
+        user_id_str = get_jwt_identity()
+        user_id = int(user_id_str)  # Convert to int
         
         # Delete all quiz results for user
         deleted_count = QuizResult.query.filter_by(user_id=user_id).delete()

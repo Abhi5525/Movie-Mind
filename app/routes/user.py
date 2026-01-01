@@ -2,9 +2,10 @@ from flask import Blueprint, request, jsonify, current_app
 from app.database import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.movie import Movie
-from app.models.users import UserRating, WatchHistory
+from app.models.users import UserRating, WatchHistory, QuizResult
 from datetime import datetime
 from app.models.users import db, User, Watchlist, WatchHistory, Favorite, UserRating
+import json
 
 
 
@@ -14,52 +15,62 @@ user_bp = Blueprint("user", __name__, url_prefix="/user")
 @user_bp.route('/panel', methods=['GET'])
 @jwt_required()
 def get_user_panel():
-    user_id = get_jwt_identity()
-    user = User.query.get_or_404(user_id)
-    watchlist = [
-        {
-            "id": item.movie_id,
-            "title": item.title,
-            "img": item.img
-        } for item in user.watchlist
-    ]
-
-    history = [
-        {
-            "id": item.movie_id,
-            "title": item.title,
-            "img": item.img,
-            "watchedDate": item.watched_date.isoformat()
-        } for item in user.history
-    ]
-
-    favorites = [
-        {
-            "id": item.movie_id,
-            "title": item.title,
-            "img": item.img
-        } for item in user.favorites
-    ]
-
-    ratings = {item.movie_id: item.rating for item in user.ratings}
-
-    return jsonify({
-        "id": user.id,
-        "name": user.name,
-        "email": user.email,
-        "joinDate": user.join_date.strftime("%Y-%m-%d"),
-        "watchlist": watchlist,
-        "watch_history": history,
-        "favorites": favorites,
-        "ratings": ratings
-    })
-
+    try:
+        # IMPORTANT: get_jwt_identity() returns the user_id (set during login)
+        user_id_str = get_jwt_identity()
+        user_id = int(user_id_str)  # Convert to int
+    
+        
+        # Debug: Print user_id to check
+        print(f"Getting panel for user_id: {user_id}")
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        watchlist_count = len(user.watchlist) if user.watchlist else 0
+        history_count = len(user.history) if user.history else 0
+        favorites_count = len(user.favorites) if user.favorites else 0
+        ratings_count = len(user.ratings) if user.ratings else 0
+        
+        quiz_profile = None
+        latest_quiz = QuizResult.query.filter_by(user_id=user_id)\
+            .order_by(QuizResult.created_at.desc()).first()
+        if latest_quiz:
+            quiz_profile = {
+                "name": latest_quiz.profile_name,
+                "description": latest_quiz.profile_description,
+                "topGenres": json.loads(latest_quiz.top_genres) if latest_quiz.top_genres else [],
+                "profileType": latest_quiz.profile_type,
+                "takenAt": latest_quiz.created_at.isoformat() if latest_quiz.created_at else None
+            }
+        
+       # In user.py get_user_panel() function, update the return statement:
+        return jsonify({
+            "success": True,
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "joinDate": user.join_date.strftime("%Y-%m-%d") if user.join_date else None,
+            # Move stats to top level
+            "watchlist": watchlist_count,
+            "watched": history_count,
+            "favorites": favorites_count,
+            "rated": ratings_count,
+            "quiz_profile": quiz_profile
+        })
+        
+    except Exception as e:
+        print(f"ERROR in get_user_panel: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @user_bp.route("/rate", methods=["POST"])
 @jwt_required()
 def rate_movie():
-    user_id = get_jwt_identity()  # get current logged-in user
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+    
     data = request.json
     movie_id = data.get("movie_id")
     rating = data.get("rating")
@@ -98,7 +109,9 @@ def rate_movie():
 @user_bp.route("/watch-history/get", methods=["GET"])
 @jwt_required()
 def get_watch_history():
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+    
     history = WatchHistory.query.filter_by(user_id=user_id).order_by(WatchHistory.watched_date.desc()).limit(20).all()
     
     result = [
@@ -118,7 +131,9 @@ def get_watch_history():
 @user_bp.route("/watch-history", methods=["POST"])
 @jwt_required()
 def add_to_watch_history():
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+    
     data = request.json
     movie_id = data.get("movie_id")
     title = data.get("title")
@@ -153,7 +168,9 @@ def add_to_watch_history():
 @user_bp.route("/history/<int:movie_id>", methods=["DELETE"])
 @jwt_required()
 def remove_history(movie_id):
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+    
     
     entry = WatchHistory.query.filter_by(user_id=user_id, movie_id=movie_id).first()
     if entry:
@@ -167,7 +184,9 @@ def remove_history(movie_id):
 @user_bp.route("/watchlist/toggle", methods=["POST"])
 @jwt_required()
 def toggle_watchlist():
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+    
     data = request.json
     movie_id = data.get("movie_id")
 
@@ -200,7 +219,9 @@ def toggle_watchlist():
 @user_bp.route("/watchlist", methods=["GET"])
 @jwt_required()
 def get_watchlist():
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+    
     watchlist_items = Watchlist.query.filter_by(user_id=user_id).order_by(Watchlist.added_date.desc()).all()
     
     result = [
@@ -220,7 +241,9 @@ def get_watchlist():
 @user_bp.route("/watchlist/add", methods=["POST"])
 @jwt_required()
 def add_to_watchlist():
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+    
     data = request.json
     movie_id = data.get("movie_id")
     title = data.get("title")
@@ -253,7 +276,9 @@ def add_to_watchlist():
 @user_bp.route("/watchlist/<int:movie_id>/remove", methods=["DELETE"])
 @jwt_required()
 def remove_from_watchlist(movie_id):
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+    
     item = Watchlist.query.filter_by(user_id=user_id, movie_id=movie_id).first()
     if not item:
         return jsonify({"msg": "Movie not found in watchlist"}), 404
@@ -270,7 +295,9 @@ def remove_from_watchlist(movie_id):
 @user_bp.route("/watchlist/mark-watched/<int:movie_id>", methods=["POST"])
 @jwt_required()
 def mark_as_watched(movie_id):
-    user_id = get_jwt_identity()
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)  # Convert to int
+    
     
     # Remove from watchlist
     Watchlist.query.filter_by(user_id=user_id, movie_id=movie_id).delete()
@@ -293,3 +320,76 @@ def mark_as_watched(movie_id):
     
     return jsonify({"msg": f"Marked {movie.title} as watched"}), 200
 
+# Add to user.py - Clear watchlist endpoint
+@user_bp.route("/watchlist/clear", methods=["DELETE"])
+@jwt_required()
+def clear_watchlist():
+    """Clear all items from user's watchlist"""
+    try:
+        user_id_str = get_jwt_identity()
+        user_id = int(user_id_str)  # Convert to int
+    
+        
+        # Count before deletion for response
+        count = Watchlist.query.filter_by(user_id=user_id).count()
+        
+        # Delete all watchlist items for this user
+        Watchlist.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Cleared {count} items from watchlist",
+            "cleared_count": count
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Add to user.py - Clear watch history endpoint
+@user_bp.route("/watch-history/clear", methods=["DELETE"])
+@jwt_required()
+def clear_watch_history():
+    """Clear all watch history for user"""
+    try:
+        user_id_str = get_jwt_identity()
+        user_id = int(user_id_str)  # Convert to int
+    
+        
+        count = WatchHistory.query.filter_by(user_id=user_id).count()
+        WatchHistory.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Cleared {count} items from watch history",
+            "cleared_count": count
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Add to user.py - Clear ratings endpoint
+@user_bp.route("/ratings/clear", methods=["DELETE"])
+@jwt_required()
+def clear_ratings():
+    """Clear all ratings for user"""
+    try:
+        user_id_str = get_jwt_identity()
+        user_id = int(user_id_str)  # Convert to int
+    
+        count = UserRating.query.filter_by(user_id=user_id).count()
+        UserRating.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Cleared {count} ratings",
+            "cleared_count": count
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
