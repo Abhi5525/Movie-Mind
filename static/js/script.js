@@ -30,7 +30,25 @@ function getAuthHeaders() {
 
     return headers;
 }
-
+// Helper function to ensure user data has proper structure
+function ensureUserDataStructure() {
+    if (!currentUser) return;
+    
+    if (!Array.isArray(currentUser.watchlist)) {
+        currentUser.watchlist = [];
+    }
+    if (!Array.isArray(currentUser.favorites)) {
+        currentUser.favorites = [];
+    }
+    if (!Array.isArray(currentUser.watch_history)) {
+        currentUser.watch_history = [];
+    }
+    if (!currentUser.ratings || typeof currentUser.ratings !== 'object') {
+        currentUser.ratings = {};
+    }
+    
+    saveUserData();
+}
 
 function showLoginModal() {
     closeModal('registerModal');
@@ -229,7 +247,6 @@ async function login(email, password) {
         const data = await res.json();
 
         if (!res.ok) {
-            // Check for specific error messages
             if (res.status === 401) {
                 throw new Error("Invalid email or password");
             } else if (res.status === 422) {
@@ -242,17 +259,17 @@ async function login(email, password) {
             throw new Error("No access token received");
         }
 
-        // Store user data
+        // Store user data with PROPER ARRAYS
         currentUser = {
             id: data.user.id,
             name: data.user.name,
             email: data.user.email,
             joinDate: data.user.joinDate || new Date().toISOString(),
             token: data.access_token,
-            watchlist: data.user.watchlist || [],
-            watch_history: data.user.history || [],
-            favorites: data.user.favorites || [],
-            ratings: data.user.ratings || {}
+            watchlist: [],  // Empty array
+            watch_history: [],  // Empty array
+            favorites: [],  // Empty array
+            ratings: {}  // Empty object
         };
 
         localStorage.setItem("currentUser", JSON.stringify(currentUser));
@@ -270,6 +287,7 @@ async function login(email, password) {
         throw err;
     }
 }
+
 async function register(name, email, password) {
     const res = await fetch(`${base_url}/auth/register`, {
         method: "POST",
@@ -362,6 +380,7 @@ function updateUIForUser() {
     }
 }
 // ===== USER PANEL =====
+
 async function showUserPanel() {
     if (!currentUser || !currentUser.token) {
         showNotification('Please login to view your profile', 'info');
@@ -390,32 +409,40 @@ async function showUserPanel() {
             throw new Error(data.error || 'Failed to load user panel');
         }
 
-        // Update currentUser with panel data
+        // Save current arrays BEFORE updating
+        const savedWatchlist = currentUser.watchlist || [];
+        const savedFavorites = currentUser.favorites || [];
+        const savedWatchHistory = currentUser.watch_history || [];
+        const savedRatings = currentUser.ratings || {};
+
+        // Update ONLY non-array fields
         currentUser = {
             ...currentUser,
-            ...data,
-            token: currentUser.token // Preserve token
+            name: data.name,
+            email: data.email,
+            joinDate: data.joinDate,
+            quiz_profile: data.quiz_profile,
+            // PRESERVE arrays - don't overwrite with numbers!
+            watchlist: savedWatchlist,
+            favorites: savedFavorites,
+            watch_history: savedWatchHistory,
+            ratings: savedRatings,
+            token: currentUser.token
         };
 
         saveUserData();
 
-        // Update the panel UI
+        // Update the panel UI (shows counts from backend)
         updatePanelUI(data);
 
-        // Load user data
+        // Load user data - this will populate actual arrays
         await loadUserData();
 
-        // Show the modal - MAKE SURE THIS IS CALLED
+        // Show the modal
         const modal = document.getElementById('userPanelModal');
         if (modal) {
             modal.style.display = 'flex';
             console.log('User panel modal displayed');
-            
-            // Make sure panel content is visible
-            const userPanel = modal.querySelector('.user-panel');
-            if (userPanel) {
-                userPanel.style.display = 'block';
-            }
         }
 
         // Switch to watchlist tab by default
@@ -427,6 +454,7 @@ async function showUserPanel() {
     }
 }
 
+
 function updatePanelUI(userData) {
     console.log("Updating panel UI with:", userData);
     
@@ -436,11 +464,14 @@ function updatePanelUI(userData) {
     document.getElementById('memberSince').textContent = userData.joinDate || 'N/A';
     document.getElementById('userAvatarLarge').textContent = userData.name ? userData.name.charAt(0).toUpperCase() : 'U';
     
-    // Update stats - they're at the top level
+    // Update stats - ONLY update the numbers, don't overwrite arrays
+    // The numbers come from the backend response
     document.getElementById('watchlistCount').textContent = userData.watchlist || 0;
     document.getElementById('moviesWatched').textContent = userData.watched || 0;
     document.getElementById('favoritesCount').textContent = userData.favorites || 0;
     document.getElementById('moviesRated').textContent = userData.rated || 0;
+    
+    // DON'T overwrite arrays here - they're loaded separately in loadUserData()
     
     // Update quiz profile if exists
     if (userData.quiz_profile) {
@@ -477,15 +508,19 @@ async function loadUserData() {
         console.error('Error loading user data:', err);
     }
 }
-
 function updateUserStats() {
     if (!currentUser) return;
+    if (!Array.isArray(currentUser.favorites)) currentUser.favorites = [];
+if (!Array.isArray(currentUser.watchlist)) currentUser.watchlist = [];
+if (!Array.isArray(currentUser.watch_history)) currentUser.watch_history = [];
+if (!currentUser.ratings || typeof currentUser.ratings !== 'object') currentUser.ratings = {};
 
-    // Get counts from currentUser data
-    const watchlistCount = currentUser.watchlist ? currentUser.watchlist.length : 0;
-    const moviesWatched = currentUser.watch_history ? currentUser.watch_history.length : 0;
-    const favoritesCount = currentUser.favorites ? currentUser.favorites.length : 0;
-    const moviesRated = currentUser.ratings ? Object.keys(currentUser.ratings).length : 0;
+    // Get counts from currentUser arrays (not numbers)
+    const watchlistCount = Array.isArray(currentUser.watchlist) ? currentUser.watchlist.length : 0;
+    const moviesWatched = Array.isArray(currentUser.watch_history) ? currentUser.watch_history.length : 0;
+    const favoritesCount = Array.isArray(currentUser.favorites) ? currentUser.favorites.length : 0;
+    const moviesRated = currentUser.ratings && typeof currentUser.ratings === 'object' ? 
+        Object.keys(currentUser.ratings).length : 0;
 
     // Update UI elements
     const watchlistCountEl = document.getElementById('watchlistCount');
@@ -497,15 +532,91 @@ function updateUserStats() {
     if (moviesWatchedEl) moviesWatchedEl.textContent = moviesWatched;
     if (favoritesCountEl) favoritesCountEl.textContent = favoritesCount;
     if (moviesRatedEl) moviesRatedEl.textContent = moviesRated;
+
+    console.log("Stats updated:", { watchlistCount, moviesWatched, favoritesCount, moviesRated });
 }
+// Helper function to create movie item for panels
+function createPanelMovieItem(movie, type = 'watchlist') {
+    const item = document.createElement('div');
+    item.className = 'movie-item panel-item';
+    // Get movie ID properly
+    const movieId = movie.id || movie.movieId || movie.movie_id;
+    if (!movieId) {
+        console.error('No movie ID found:', movie);
+        return document.createElement('div'); // Return empty div
+    }
+    
+    item.dataset.id = movieId;
+
+    const hasImage = movie.poster_path || movie.image_url || movie.img;
+    const imageUrl = hasImage ? (movie.poster_path || movie.image_url || movie.img) : 'https://placehold.co/150x200/233241/ffffff?text=No+Poster';
+    const title = movie.title || movie.name || 'Unknown';
+    const year = movie.release_date ? new Date(movie.release_date).getFullYear() : (movie.year || '');
+    const rating = movie.vote_average || movie.rating || 'N/A';
+    
+    // FIX: Handle genres whether it's string or array
+    let genres = [];
+    if (movie.genres) {
+        if (Array.isArray(movie.genres)) {
+            genres = movie.genres;
+        } else if (typeof movie.genres === 'string') {
+            genres = movie.genres.split(',').map(g => g.trim());
+        }
+    }
+
+    item.innerHTML = `
+        <div class="panel-movie-poster">
+            <img src="${imageUrl}" alt="${title}" 
+                 onerror="this.src='https://placehold.co/150x200/233241/ffffff?text=No+Poster'">
+            <div class="panel-movie-overlay">
+
+                <button class="panel-remove-btn" data-movie-id="${movie.id || movie.movieId}" data-type="${type}"
+                        title="Remove from ${type}">
+                    <i class="fas fa-times"></i>
+                </button>
+                ${type === 'ratings' ? `
+                    <div class="panel-user-rating">
+                        <i class="fas fa-star"></i> ${movie.user_rating || movie.rating || 'N/A'}
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+        <div class="panel-movie-info">
+            <h5 class="panel-movie-title" title="${title}">${title}</h5>
+            <div class="panel-movie-details">
+                <span class="panel-movie-year">${year}</span>
+                <span class="panel-movie-rating">
+                    <i class="fas fa-star"></i> ${rating}
+                </span>
+            </div>
+            ${genres.length > 0 ? `
+                <div class="panel-movie-genres">
+                    ${genres.slice(0, 2).map(genre => 
+                        `<span class="genre-tag">${genre}</span>`
+                    ).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `;
+    return item;
+}
+
+function capitalizeFirstLetter(string) {
+    // Handle special cases
+    if (string === 'watch-history') {
+        return 'WatchHistory';
+    }
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 function switchPanelTab(tabId) {
     console.log('Switching to tab:', tabId);
-    
+
     // Remove active class from all tabs
     document.querySelectorAll('.panel-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    
+
     // Add active class to clicked tab button
     const tabButtons = document.querySelectorAll(`.panel-tab`);
     tabButtons.forEach(button => {
@@ -519,7 +630,7 @@ function switchPanelTab(tabId) {
         content.classList.remove('active');
         content.style.display = 'none';
     });
-    
+
     // Show the selected panel
     const panel = document.getElementById(`${tabId}-panel`);
     if (panel) {
@@ -543,56 +654,65 @@ function updateWatchlistProgress() {
 }
 
 // ===== WATCHLIST FUNCTIONS =====
-
-async function autoAddSimilarMovies(movieId, title) {
-    showNotification(`Looking for movies similar to "${title}"...`, 'info');
-
-    try {
-        const res = await fetch(`${base_url}/recommendations/similar/${movieId}`, {
-            headers: { "Authorization": `Bearer ${currentUser.token}` }
-        });
-        const similarMovies = await res.json();
-        if (!res.ok) throw similarMovies;
-
-        // Example: add first 3 similar movies to watchlist automatically
-        for (let movie of similarMovies.slice(0, 3)) {
-            await toggleWatchlist({ stopPropagation: () => { } }, movie.id, movie.title, movie.img, movie.rating, movie.year);
-        }
-
-        showNotification(`Added similar movies to your watchlist!`, 'success');
-    } catch (err) {
-        showNotification(err.msg || "Failed to fetch similar movies", "error");
-    }
-}
-
 async function addToWatchlist(movie) {
     if (!currentUser) {
         showNotification('Please login to add to watchlist', 'info');
-        showLoginModal();
+        return;
+    }
+
+    // Check if already in watchlist
+    if (currentUser.watchlist && currentUser.watchlist.some(m =>
+        m.id === movie.id || m.movieId === movie.id
+    )) {
+        showNotification('Already in your watchlist', 'info');
         return;
     }
 
     try {
-        const res = await fetch(`${base_url}/user/watchlist/add`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${currentUser.token}` },
+        const res = await fetch(`${base_url}/user/watchlist`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
             body: JSON.stringify({
-                movie_id: movie.id,
+                movieId: movie.id,
                 title: movie.title,
-                img: movie.img,
-                rating: movie.rating,
-                year: movie.year
+                poster_path: movie.poster_path,
+                release_date: movie.release_date,
+                vote_average: movie.vote_average,
+                genres: movie.genres
             })
         });
+
         const data = await res.json();
-        if (!res.ok) throw data;
-        showNotification(`Added "${movie.title}" to watchlist`, 'success');
-        loadWatchlist();
+
+        if (data.success) {
+            showNotification('Added to watchlist', 'success');
+
+            // Add to currentUser
+            if (!currentUser.watchlist) currentUser.watchlist = [];
+            currentUser.watchlist.push({
+                id: movie.id,
+                title: movie.title,
+                poster_path: movie.poster_path,
+                release_date: movie.release_date,
+                vote_average: movie.vote_average
+            });
+
+            saveUserData();
+
+            // Update UI
+            if (document.getElementById('userPanelModal').style.display === 'flex') {
+                await loadWatchlist();
+            }
+        }
     } catch (err) {
-        showNotification(err.msg || 'Failed to add to watchlist', 'error');
+        console.error('Error adding to watchlist:', err);
+        showNotification('Failed to add to watchlist', 'error');
     }
 }
 async function loadWatchlist() {
+    if (!Array.isArray(currentUser.watchlist)) {
+        currentUser.watchlist = [];
+    }
     if (!currentUser) return;
 
     try {
@@ -600,87 +720,49 @@ async function loadWatchlist() {
             headers: getAuthHeaders()
         });
 
-        if (res.status === 401) {
-            logout();
-            showNotification("Session expired. Please log in again.", "error");
+        if (!res.ok) throw new Error('Failed to load watchlist');
+
+        const data = await res.json();
+        console.log("Watchlist loaded:", data);
+
+        const watchlistList = document.getElementById('watchlistList');
+        const emptyState = document.getElementById('emptyWatchlist');
+
+        if (!watchlistList || !emptyState) return;
+
+        watchlistList.innerHTML = '';
+
+        if (data.length === 0) {
+            watchlistList.style.display = 'none';
+            emptyState.style.display = 'block';
             return;
         }
 
-        if (!res.ok) {
-            throw new Error(`Failed to load watchlist: ${res.status}`);
-        }
+        emptyState.style.display = 'none';
+        watchlistList.style.display = 'grid';
 
-        const watchlist = await res.json();
-        console.log("Watchlist loaded:", watchlist.length, "items");
+        // NORMALIZE DATA: Add 'id' field if it doesn't exist
+        const normalizedData = data.map(item => ({
+            ...item,
+            id: item.id || item.movie_id  // Add 'id' field if missing
+        }));
 
-        // Update currentUser
-        currentUser.watchlist = watchlist;
-        saveUserData();
+        // Update currentUser watchlist with normalized data
+        currentUser.watchlist = normalizedData;
 
-        // Update UI if panel is open
-        const container = document.getElementById('watchlistList');
-        const emptyState = document.getElementById('emptyWatchlist');
+        // Render each movie with image
+        normalizedData.forEach(movie => {
+            const movieItem = createPanelMovieItem(movie, 'watchlist');
+            watchlistList.appendChild(movieItem);
+        });
 
-        if (container && emptyState) {
-            if (!watchlist || watchlist.length === 0) {
-                container.innerHTML = '';
-                container.style.display = 'none';
-                emptyState.style.display = 'block';
-            } else {
-                container.innerHTML = watchlist.map(movie => `
-                    <div class="movie-item">
-                        <img src="${movie.img || '/static/images/poster-not-available.jpg'}" alt="${movie.title}">
-                        <div class="movie-info-small">
-                            <h4>${movie.title.length > 20 ? movie.title.substring(0, 20) + '...' : movie.title}</h4>
-                            <p>⭐ ${movie.rating || 'N/A'} • ${movie.year || 'N/A'}</p>
-                        </div>
-                        <button class="movie-action-btn remove" onclick="removeFromWatchlist(${movie.movie_id})">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                `).join('');
-
-                container.style.display = 'grid';
-                emptyState.style.display = 'none';
-            }
-        }
+        // Update stats
+        updateUserStats();
+        updateWatchlistProgress();
 
     } catch (err) {
         console.error('Error loading watchlist:', err);
-    }
-}
-async function removeFromWatchlist(movieId) {
-    if (!currentUser) return;
-
-    try {
-        await fetch(`${base_url}/user/watchlist/${movieId}/remove`, {
-            method: "DELETE",
-            headers: { "Authorization": `Bearer ${currentUser.token}` }
-        });
-        showNotification('Removed from watchlist', 'info');
-        loadWatchlist();
-    } catch (err) {
-        showNotification('Failed to remove from watchlist', 'error');
-    }
-}
-async function markAsWatched(event, movieId) {
-    event.stopPropagation();
-    if (!currentUser) return;
-
-    try {
-        const res = await fetch(`${base_url}/user/watchlist/mark-watched/${movieId}`, {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${currentUser.token}` }
-        });
-        const data = await res.json();
-        if (!res.ok) throw data;
-
-        showNotification(data.msg, 'success');
-        loadWatchlist();
-        loadWatchHistory();
-        updateUserStats();
-    } catch (err) {
-        showNotification(err.msg || 'Failed to mark as watched', 'error');
+        showNotification('Failed to load watchlist', 'error');
     }
 }
 // ===== IMPROVED TOGGLE WATCHLIST =====
@@ -691,14 +773,29 @@ async function toggleWatchlist(event, movieId, title, img, rating, year) {
         return;
     }
 
-    const wasInWatchlist = currentUser.watchlist?.some(w => w.id === movieId) || false;
+    // ENSURE watchlist is an array
+    if (!Array.isArray(currentUser.watchlist)) {
+        currentUser.watchlist = [];
+    }
+
+    const wasInWatchlist = currentUser.watchlist.some(w => w.id === movieId);
 
     try {
         const res = await fetch(`${base_url}/user/watchlist/toggle`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${currentUser.token}` },
-            body: JSON.stringify({ movie_id: movieId, title, img, rating, year })
+            headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": `Bearer ${currentUser.token}` 
+            },
+            body: JSON.stringify({ 
+                movie_id: movieId, 
+                title, 
+                img, 
+                rating, 
+                year 
+            })
         });
+        
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed");
 
@@ -735,7 +832,6 @@ async function toggleWatchlist(event, movieId, title, img, rating, year) {
         showNotification(err.message || 'Failed to update watchlist', 'error');
     }
 }
-
 
 // ===== WATCH HISTORY FUNCTIONS =====
 
@@ -788,56 +884,65 @@ async function addToWatchHistory(movie) {
         showNotification(err.message || 'Failed to add to watch history', 'error');
     }
 }
+
+// FIXED loadWatchHistory function
 async function loadWatchHistory() {
+    if (!Array.isArray(currentUser.watchlist)) {
+        currentUser.watchlist = [];
+    }
     if (!currentUser) return;
 
-    const res = await fetch(`${base_url}/user/watch-history/get`, {
-        headers: { "Authorization": `Bearer ${currentUser.token}` }
-    });
-    const recentHistory = await res.json();
-
-    // Get last 20 watched movies
-    const container = document.getElementById('watchHistoryList'); // ✅ declare
-    const emptyState = document.getElementById('emptyWatchHistory'); // ✅ declare
-
-    container.innerHTML = recentHistory.map(movie => `
-        <div class="movie-item">
-            <img src="${movie.img || '/static/images/poster-not-available.jpg'}" alt="${movie.title}">
-                <h4>${movie.title.length > 20 ? movie.title.substring(0, 20) + '...' : movie.title}</h4>
-                <p>⭐ ${movie.rating || 'N/A'} • ${movie.year || 'N/A'}</p>
-                <p style="font-size: 10px; color: #666;">Watched: ${new Date(movie.watchedDate).toLocaleDateString()}</p>
-            </div>
-            <div class="movie-actions">
-                <button class="movie-action-btn remove" onclick="removeFromHistory(event, ${movie.id})" title="Remove">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
-
-    container.style.display = 'grid';
-    emptyState.style.display = 'none';
-}
-
-
-async function removeFromHistory(event, movieId) {
-    event.stopPropagation();
     try {
-        await fetch(`${base_url}/user/history/${movieId}`, {
-            method: 'DELETE',
+        const res = await fetch(`${base_url}/user/watch-history/get`, {
             headers: { "Authorization": `Bearer ${currentUser.token}` }
         });
-        showNotification(`Removed from history`, 'info');
+
+        if (!res.ok) throw new Error('Failed to load watch history');
+
+        const recentHistory = await res.json();
+        console.log("Watch history loaded:", recentHistory);
+
+        const container = document.getElementById('watchHistoryList');
+        const emptyState = document.getElementById('emptyWatchHistory');
+
+        if (!container || !emptyState) return;
+
+        container.innerHTML = '';
+
+        if (!recentHistory || recentHistory.length === 0) {
+            container.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        container.style.display = 'grid';
+
+        // NORMALIZE DATA
+        const normalizedData = recentHistory.map(item => ({
+            ...item,
+            id: item.id || item.movie_id
+        }));
+
+        // Update currentUser
+        currentUser.watch_history = normalizedData;
+
+        // Render each movie
+        normalizedData.forEach(movie => {
+            const movieItem = createPanelMovieItem(movie, 'watch-history');
+            container.appendChild(movieItem);
+        });
+
+        updateUserStats();
+
     } catch (err) {
-        showNotification('Failed to remove from history', 'error');
+        console.error('Error loading watch history:', err);
+        showNotification('Failed to load watch history', 'error');
     }
 }
-async function clearWatchlist() {
-    if (!currentUser) return;
 
-    if (!confirm("Are you sure you want to clear your entire watchlist?")) {
-        return;
-    }
+async function clearWatchlist() {
+    if (!confirm('Clear your entire watchlist?')) return;
 
     try {
         const res = await fetch(`${base_url}/user/watchlist/clear`, {
@@ -848,21 +953,23 @@ async function clearWatchlist() {
         const data = await res.json();
 
         if (data.success) {
-            showNotification(data.message, 'success');
-            // Update local state
-            if (currentUser.watchlist) {
-                currentUser.watchlist = [];
-                saveUserData();
-            }
-            // Refresh UI
-            loadWatchlist();
+            showNotification('Watchlist cleared', 'success');
+
+            // Clear from currentUser
+            currentUser.watchlist = [];
+
+            // Update UI
+            document.getElementById('watchlistList').innerHTML = '';
+            document.getElementById('emptyWatchlist').style.display = 'block';
+
+            // Update stats
             updateUserStats();
             updateWatchlistProgress();
-        } else {
-            showNotification(data.error || 'Failed to clear watchlist', 'error');
+
+            saveUserData();
         }
     } catch (err) {
-        console.error('Clear watchlist error:', err);
+        console.error('Error clearing watchlist:', err);
         showNotification('Failed to clear watchlist', 'error');
     }
 }
@@ -900,6 +1007,452 @@ async function clearWatchHistory() {
         showNotification('Failed to clear watch history', 'error');
     }
 }
+async function removeFromWatchlist(movieId) {
+    console.log('removeFromWatchlist called with movieId:', movieId, 'type:', typeof movieId);
+    
+    if (!movieId || movieId === 'undefined') {
+        showNotification('Invalid movie ID', 'error');
+        return;
+    }
+
+    if (!confirm('Remove from watchlist?')) return;
+
+    try {
+        // Convert to number since your endpoint expects int
+        const movieIdNum = parseInt(movieId);
+        console.log('Parsed movie ID:', movieIdNum);
+        
+        // Use the correct endpoint
+        const res = await fetch(`${base_url}/user/watchlist/${movieIdNum}/remove`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+
+        console.log('Remove response status:', res.status);
+        
+        if (!res.ok) {
+            // Try alternative approach
+            console.log('Direct DELETE failed, trying toggle...');
+            const toggleRes = await fetch(`${base_url}/user/watchlist/toggle`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ 
+                    movie_id: movieIdNum 
+                })
+            });
+            
+            const toggleData = await toggleRes.json();
+            if (!toggleRes.ok) throw new Error(toggleData.error || 'Failed to remove from watchlist');
+            
+            showNotification(toggleData.message || 'Removed from watchlist', 'success');
+        } else {
+            const data = await res.json();
+            showNotification(data.msg || 'Removed from watchlist', 'success');
+        }
+
+        // Remove from currentUser array
+        if (currentUser.watchlist) {
+            currentUser.watchlist = currentUser.watchlist.filter(movie => 
+                String(movie.id) !== String(movieId) && 
+                String(movie.movieId) !== String(movieId) &&
+                String(movie.movie_id) !== String(movieId)
+            );
+        }
+
+        // Reload watchlist
+        await loadWatchlist();
+        
+    } catch (err) {
+        console.error('Error removing from watchlist:', err);
+        showNotification('Failed to remove from watchlist', 'error');
+    }
+}
+async function removeFromFavorites(movieId) {
+    console.log('removeFromFavorites called with movieId:', movieId, 'type:', typeof movieId);
+    console.log('Current favorites:', currentUser.favorites);
+    
+    if (!movieId || movieId === 'undefined') {
+        showNotification('Invalid movie ID', 'error');
+        return;
+    }
+
+    if (!confirm('Remove from favorites?')) return;
+
+    try {
+        // Check if movie is actually in favorites - use loose comparison
+        const isInFavorites = currentUser.favorites?.some(f => 
+            f.id == movieId || f.movieId == movieId
+        );
+        
+        if (!isInFavorites) {
+            showNotification('Movie not in favorites', 'info');
+            return;
+        }
+
+        // Convert to number
+        const movieIdNum = parseInt(movieId);
+        
+        // Use toggle endpoint - it will remove if already in favorites
+        const res = await fetch(`${base_url}/favorites/toggle`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ 
+                movie_id: movieIdNum 
+            })
+        });
+
+        const data = await res.json();
+        console.log('Remove favorites response:', data);
+        
+        if (res.ok) {
+            showNotification('Removed from favorites', 'success');
+
+            // Remove from currentUser array
+            if (currentUser.favorites) {
+                currentUser.favorites = currentUser.favorites.filter(movie => 
+                    String(movie.id) !== String(movieId) && 
+                    String(movie.movieId) !== String(movieId) &&
+                    String(movie.movie_id) !== String(movieId)
+                );
+            }
+
+            // Update UI immediately
+            updateMovieCardUI(movieIdNum, { isFavorite: false });
+            
+            // Reload favorites
+            await loadFavorites();
+        } else {
+            throw new Error(data.error || 'Failed to remove from favorites');
+        }
+    } catch (err) {
+        console.error('Error removing from favorites:', err);
+        showNotification('Failed to remove from favorites', 'error');
+    }
+}
+
+async function removeFromWatchHistory(movieId) {
+    if (!confirm('Remove from watch history?')) return;
+
+    try {
+        // Use the correct endpoint from your backend
+        const res = await fetch(`${base_url}/user/history/${movieId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+
+        if (!res.ok) throw new Error('Failed to remove from history');
+        
+        const data = await res.json();
+        showNotification(data.msg || 'Removed from watch history', 'success');
+
+        // Remove from currentUser array
+        if (currentUser.watch_history) {
+            currentUser.watch_history = currentUser.watch_history.filter(movie => 
+                String(movie.id) !== String(movieId) && 
+                String(movie.movieId) !== String(movieId) &&
+                String(movie.movie_id) !== String(movieId)
+            );
+        }
+
+        await loadWatchHistory();
+        
+    } catch (err) {
+        console.error('Error removing from watch history:', err);
+        showNotification('Failed to remove from watch history', 'error');
+    }
+}// ===== FAVORITES FUNCTIONS =====
+
+async function toggleFavorite(eventOrMovieData, extraData) {
+    let movieData;
+
+    if (typeof eventOrMovieData === 'object' && eventOrMovieData.target) {
+        eventOrMovieData.stopPropagation();
+        if (!currentUser) { showLoginModal(); return; }
+        movieData = extraData;
+    } else {
+        if (!currentUser) { showLoginModal(); return; }
+        movieData = eventOrMovieData;
+    }
+
+    const { movie_id, title, img, rating, year } = movieData;
+    
+    // ENSURE favorites is an array
+    if (!Array.isArray(currentUser.favorites)) {
+        currentUser.favorites = [];
+    }
+    
+    const wasFavorite = currentUser.favorites.some(f => f.id === movie_id);
+
+    try {
+        const res = await fetch(`${base_url}/favorites/toggle`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${currentUser.token}`
+            },
+            body: JSON.stringify({ 
+                movie_id: movie_id, 
+                title: title, 
+                img: img, 
+                rating: rating, 
+                year: year 
+            })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || data.error || "Toggle failed");
+
+        // Update currentUser
+        if (wasFavorite) {
+            currentUser.favorites = currentUser.favorites.filter(f => f.id !== movie_id);
+        } else {
+            currentUser.favorites.push({ id: movie_id, title, img, rating, year });
+        }
+        saveUserData();
+
+        // Update UI for this movie
+        updateMovieCardUI(movie_id, { isFavorite: !wasFavorite });
+
+        // Refresh panel if open
+        const panelModal = document.getElementById('userPanelModal');
+        if (panelModal && panelModal.style.display === 'flex') {
+            await loadFavorites();
+            updateUserStats();
+        }
+
+        showNotification(data.message || "Favorite updated", 'success');
+    } catch (err) {
+        console.error('Favorite toggle error:', err);
+        showNotification(err.message || 'Failed to update favorites', 'error');
+    }
+}
+// UPDATED loadFavorites function
+async function loadFavorites() {
+    if (!Array.isArray(currentUser.watchlist)) {
+        currentUser.watchlist = [];
+    }
+    if (!currentUser) return;
+
+    try {
+        const res = await fetch(`${base_url}/favorites/`, {
+            headers: getAuthHeaders()
+        });
+
+        if (!res.ok) throw new Error('Failed to load favorites');
+
+        const data = await res.json();
+        console.log("Favorites loaded:", data);
+
+        const container = document.getElementById('favoritesList');
+        const emptyState = document.getElementById('emptyFavorites');
+
+        if (!container || !emptyState) return;
+
+        container.innerHTML = '';
+
+        if (!data || data.length === 0) {
+            container.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        container.style.display = 'grid';
+
+        // NORMALIZE DATA
+        const normalizedData = data.map(item => ({
+            ...item,
+            id: item.id || item.movie_id
+        }));
+
+        // Update currentUser
+        currentUser.favorites = normalizedData;
+
+        // Render each movie
+        normalizedData.forEach(movie => {
+            const movieItem = createPanelMovieItem(movie, 'favorites');
+            container.appendChild(movieItem);
+        });
+
+        updateUserStats();
+
+    } catch (err) {
+        console.error('Error loading favorites:', err);
+        showNotification('Failed to load favorites', 'error');
+    }
+}
+async function clearFavorites() {
+    if (!confirm('Clear all favorites?')) return;
+    
+    try {
+        const res = await fetch(`${base_url}/favorites/clear`, {
+            method: 'POST',  // Change from DELETE to POST
+            headers: getAuthHeaders()
+        });
+        
+        const data = await res.json();
+        console.log('Clear favorites response:', data);
+        
+        if (data.message || data.success) {
+            showNotification('Favorites cleared', 'success');
+            
+            // Clear from currentUser
+            currentUser.favorites = [];
+            
+            // Update UI
+            const favoritesList = document.getElementById('favoritesList');
+            const emptyState = document.getElementById('emptyFavorites');
+            
+            if (favoritesList && emptyState) {
+                favoritesList.innerHTML = '';
+                favoritesList.style.display = 'none';
+                emptyState.style.display = 'block';
+            }
+            
+            // Update stats
+            updateUserStats();
+            
+            saveUserData();
+        } else {
+            throw new Error('Failed to clear favorites');
+        }
+    } catch (err) {
+        console.error('Error clearing favorites:', err);
+        showNotification('Failed to clear favorites', 'error');
+    }
+}
+
+// ===== RATINGS FUNCTIONS =====
+// Rate a movie
+
+// Fix the rateMovie function to update UI properly
+async function rateMovie(movieId, rating) {
+    if (!currentUser) {
+        showNotification('Please login to rate movies', 'info');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${base_url}/user/ratings`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                movieId: movieId,
+                rating: rating
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showNotification(`Rated ${rating} stars`, 'success');
+
+            // Update currentUser
+            if (!currentUser.ratings) currentUser.ratings = {};
+            currentUser.ratings[movieId] = rating;
+
+            // Update UI
+            updateMovieRatingStars(movieId, rating);
+
+            // Update panel if open
+            const panelModal = document.getElementById('userPanelModal');
+            if (panelModal && panelModal.style.display === 'flex') {
+                await loadRatings();
+                updateUserStats();
+            }
+
+            saveUserData();
+        }
+    } catch (err) {
+        console.error('Error rating movie:', err);
+        showNotification('Failed to rate movie', 'error');
+    }
+}
+
+// Load ratings
+async function loadRatings() {
+    if (!currentUser) return;
+
+    try {
+        const res = await fetch(`${base_url}/user/ratings`, {
+            headers: getAuthHeaders()
+        });
+
+        if (!res.ok) throw new Error('Failed to load ratings');
+
+        const data = await res.json();
+        console.log("Ratings loaded:", data);
+
+        const ratingsList = document.getElementById('ratingsList');
+        const emptyState = document.getElementById('emptyRatings');
+
+        if (!ratingsList || !emptyState) return;
+
+        ratingsList.innerHTML = '';
+
+        if (data.length === 0) {
+            ratingsList.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        ratingsList.style.display = 'grid';
+
+        // Update currentUser ratings
+        currentUser.ratings = {};
+        
+        // Render each rated movie
+        data.forEach(item => {
+            // Store rating in currentUser
+            currentUser.ratings[item.movieId || item.movie_id] = item.rating;
+            
+            // Create movie item
+            const movieItem = createPanelMovieItem({
+                ...item.movie,
+                id: item.movieId || item.movie_id,
+                user_rating: item.rating
+            }, 'ratings');
+            ratingsList.appendChild(movieItem);
+        });
+
+    } catch (err) {
+        console.error('Error loading ratings:', err);
+        showNotification('Failed to load ratings', 'error');
+    }
+}// UNCOMMENT AND UPDATE these rating functions
+
+function updateRating(event, movieId, title) {
+    event.stopPropagation();
+
+    const currentRating = currentUser.ratings ? currentUser.ratings[movieId] || 0 : 0;
+    const newRating = parseInt(prompt(`Update rating for "${title}" (1-5):`, currentRating));
+
+    if (newRating && newRating >= 1 && newRating <= 5) {
+        rateMovie(movieId, newRating);
+    }
+}
+
+function updateMovieRatingStars(movieId, rating) {
+    const card = document.querySelector(`.movie-card[data-movie-id="${movieId}"]`);
+    if (card) {
+        const starsContainer = card.querySelector('.quick-rating');
+        if (starsContainer) {
+            const stars = starsContainer.querySelectorAll('.quick-star');
+            stars.forEach((star, index) => {
+                star.classList.toggle('active', index < rating);
+            });
+        }
+    }
+}
+
+function getStarRating(rating) {
+    let stars = '';
+    for (let i = 1; i <= 5; i++) {
+        stars += i <= rating ? '★' : '☆';
+    }
+    return stars;
+}
 
 async function clearRatings() {
     if (!currentUser) return;
@@ -934,214 +1487,57 @@ async function clearRatings() {
         showNotification('Failed to clear ratings', 'error');
     }
 }
-
-
-// ===== FAVORITES FUNCTIONS =====
-async function toggleFavorite(eventOrMovieData, extraData) {
-    let movieData;
-
-    if (typeof eventOrMovieData === 'object' && eventOrMovieData.target) {
-        // Called from inline handler with event
-        eventOrMovieData.stopPropagation();
-        if (!currentUser) { showLoginModal(); return; }
-        // Assume extraData contains { movie_id, title, img, rating, year }
-        movieData = extraData;
-    } else {
-        // Called directly: toggleFavorite({ movie_id, title, img, rating, year })
-        if (!currentUser) { showLoginModal(); return; }
-        movieData = eventOrMovieData;
-    }
-
-    const { movie_id, title, img, rating, year } = movieData;
-    const wasFavorite = currentUser.favorites?.some(f => f.id === movie_id) || false;
+async function removeFromRatings(movieId) {
+    if (!confirm('Remove this rating?')) return;
 
     try {
-        const res = await fetch(`${base_url}/favorites/toggle`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${currentUser.token}`
-            },
-            body: JSON.stringify({ movie_id, title, img, rating, year })
+        // Convert to number
+        const movieIdNum = parseInt(movieId);
+        
+        // First try to delete using a DELETE endpoint if it exists
+        // If not, we need to handle this differently
+        const res = await fetch(`${base_url}/user/ratings`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                movie_id: movieIdNum
+            })
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Toggle failed");
 
-        // Update currentUser
-        if (wasFavorite) {
-            currentUser.favorites = currentUser.favorites.filter(f => f.id !== movie_id);
+        // If DELETE not allowed, try a different approach
+        if (res.status === 405) {
+            // Check if you have a specific delete endpoint
+            const deleteRes = await fetch(`${base_url}/user/ratings/${movieIdNum}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            
+            if (deleteRes.ok) {
+                const data = await deleteRes.json();
+                showNotification(data.message || 'Rating removed', 'success');
+            } else {
+                throw new Error('No delete endpoint for ratings');
+            }
+        } else if (!res.ok) {
+            throw new Error('Failed to remove rating');
         } else {
-            currentUser.favorites.push({ id: movie_id, title, img, rating, year });
-        }
-        saveUserData();
-
-        // ✅ Only update UI for this movie
-        updateMovieCardUI(movie_id, { isFavorite: !wasFavorite });
-
-        // Optional: refresh panel if open
-        if (document.getElementById('userPanelModal').style.display === 'flex') {
-            await getFavorites();
-            updateUserStats();
+            const data = await res.json();
+            showNotification(data.message || 'Rating removed', 'success');
         }
 
-        showNotification(data.message, 'success');
+        // Remove from currentUser ratings
+        if (currentUser.ratings && currentUser.ratings[movieId]) {
+            delete currentUser.ratings[movieId];
+        }
+
+        // Reload ratings
+        await loadRatings();
+        
     } catch (err) {
-        showNotification(err.message || 'Failed to update favorites', 'error');
+        console.error('Error removing rating:', err);
+        showNotification('Failed to remove rating. Try updating it to 0 stars instead.', 'error');
     }
-}
-
-
-async function loadFavorites() {
-    if (!currentUser) return;
-
-    try {
-        const res = await fetch(`${base_url}/favorites/`, {
-            headers: { "Authorization": `Bearer ${currentUser.token}` }
-        });
-        const data = await res.json();
-
-        const container = document.getElementById('favoritesList');
-        const emptyState = document.getElementById('emptyFavorites');
-
-        if (!data || data.length === 0) {
-            container.innerHTML = '';
-            container.style.display = 'none';
-            emptyState.style.display = 'block';
-            return;
-        }
-
-        container.innerHTML = data.map(movie => `
-            <div class="movie-item">
-                <img src="${movie.img}" alt="${movie.title}" onerror="this.src='https://placehold.co/150x200/233241/ffffff?text=No+Poster'">
-                <div class="movie-info-small">
-                    <h4>${movie.title}</h4>
-                    <p>⭐ ${movie.rating || 'N/A'}</p>
-                </div>
-                <div class="movie-actions">
-                    <button onclick='toggleFavorite(event, ${JSON.stringify(movie)})'>Remove</button>
-                </div>
-            </div>
-        `).join('');
-
-        container.style.display = 'grid';
-        emptyState.style.display = 'none';
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-async function clearFavorites() {
-    if (!currentUser) return;
-
-    if (confirm("Clear all favorites?")) {
-        await fetch(`${base_url}/favorites/clear`, {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${currentUser.token}` }
-        });
-        loadFavorites();
-        showNotification('Favorites cleared', 'info');
-    }
-}
-
-// ===== RATINGS FUNCTIONS =====
-async function rateMovie(event, movieId, rating, title) {
-    event.stopPropagation();
-    if (!currentUser) { showLoginModal(); return; }
-
-    try {
-        const res = await fetch(`${base_url}/user/rate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ movie_id: movieId, rating })
-        });
-        const data = await res.json();
-        if (res.ok) {
-            showNotification(`Rated "${title}" ${rating} stars`, 'success');
-            loadRatings(); // fetch ratings from backend
-        } else {
-            showNotification(data.error || 'Failed to rate movie', 'error');
-        }
-    } catch (err) { console.error(err); }
-}
-
-// function updateMovieRatingStars(movieId, rating) {
-//     const starsContainer = document.querySelector(`.movie-card[data-movie-id="${movieId}"] .quick-rating`);
-//     if (starsContainer) {
-//         const stars = starsContainer.querySelectorAll('.quick-star');
-//         stars.forEach((star, index) => {
-//             star.classList.toggle('active', index < rating);
-//         });
-//     }
-// }
-async function loadRatings() {
-    if (!currentUser || !currentUser.ratings) {
-        document.getElementById('emptyRatings').style.display = 'block';
-        document.getElementById('ratingsList').innerHTML = '';
-        return;
-    }
-    const container = document.getElementById('ratingsList');
-    const emptyState = document.getElementById('emptyRatings');
-    const movieIds = Object.keys(currentUser.ratings);
-
-    if (movieIds.length === 0) {
-        emptyState.style.display = 'block';
-        container.innerHTML = '';
-        return;
-    }
-
-    // You’ll need movie titles/imgs → either:
-    // Option A: Fetch full movie objects by ID (requires new backend route)
-    // Option B: Store full movie in ratings (not currently done)
-
-    // For now, use placeholder
-    container.innerHTML = movieIds.map(id => `
-    <div class="movie-item">
-      <p>Movie ID: ${id} — Rating: ${currentUser.ratings[id]}</p>
-    </div>
-  `).join('');
-    emptyState.style.display = 'none';
-}
-// function updateRating(event, movieId, title) {
-//     event.stopPropagation();
-
-//     const currentRating = currentUser.ratings[movieId] || 0;
-//     const newRating = parseInt(prompt(`Update rating for "${title}" (1-5):`, currentRating));
-
-//     if (newRating && newRating >= 1 && newRating <= 5) {
-//         rateMovie(event, movieId, newRating, title);
-//     }
-// }
-
-// function getStarRating(rating) {
-//     let stars = '';
-//     for (let i = 1; i <= 5; i++) {
-//         stars += i <= rating ? '★' : '☆';
-//     }
-//     return stars;
-// }
-
-function updatePreferredGenres() {
-    if (!currentUser || !currentUser.ratings || Object.keys(currentUser.ratings).length < 3) {
-        return;
-    }
-
-    // This is a simplified version - in production, you'd analyze movie genres
-    if (!currentUser.preferred_genres || currentUser.preferred_genres.length === 0) {
-        currentUser.preferred_genres = ['Action', 'Drama', 'Sci-Fi'];
-    }
-}
-
-// ===== PREFERENCES FUNCTIONS =====
-async function loadPreferences() {
-    if (!currentUser) return;
-    try {
-        const res = await fetch(`/user/${currentUser.id}/history`);
-        const data = await res.json();
-        const container = document.getElementById('preferredGenres');
-        container.innerHTML = (data.preferred_genres || []).map(g => `<span class="genre-tag">${g}</span>`).join('') || '<p>No preferences yet</p>';
-    } catch (err) { console.error(err); }
-}
-
+}// ===== PREFERENCES FUNCTIONS =====
 
 
 let currentMovieContext = {
@@ -1154,28 +1550,42 @@ function updateMovieContext(type, params, movies) {
     currentMovieContext = { type, params, data: movies };
     renderMovies(movies);
 }
-
-
 function updateMovieCardUI(movieId, updates) {
     const card = document.querySelector(`.movie-card[data-movie-id="${movieId}"]`);
     if (!card) return;
 
     if (updates.isInWatchlist !== undefined) {
         const btn = card.querySelector('.action-btn.watchlist');
-        btn.classList.toggle('active', updates.isInWatchlist);
-        const icon = btn.querySelector('i');
-        icon.className = updates.isInWatchlist ? 'fas fa-bookmark' : 'far fa-bookmark';
+        if (btn) {
+            btn.classList.toggle('active', updates.isInWatchlist);
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = updates.isInWatchlist ? 'fas fa-bookmark' : 'far fa-bookmark';
+            }
+        }
     }
 
     if (updates.isFavorite !== undefined) {
-        // similar update
+        const btn = card.querySelector('.action-btn.favorite');
+        if (btn) {
+            btn.classList.toggle('active', updates.isFavorite);
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = updates.isFavorite ? 'fas fa-heart' : 'far fa-heart';
+            }
+        }
     }
 
     if (updates.userRating !== undefined) {
-        // update stars
+        const starsContainer = card.querySelector('.quick-rating');
+        if (starsContainer) {
+            const stars = starsContainer.querySelectorAll('.quick-star');
+            stars.forEach((star, index) => {
+                star.classList.toggle('active', index < updates.userRating);
+            });
+        }
     }
 }
-
 
 // ===== Render Movies =====
 function renderMovies(list) {
@@ -1245,13 +1655,19 @@ function renderMovies(list) {
                             <i class="${isInWatchlist ? 'fas' : 'far'} fa-bookmark"></i>
                         </button>
                         <button class="action-btn favorite ${isFavorite ? 'active' : ''}"
-                            onclick="toggleFavorite({ movie_id: ${movie.id}, title: '${title}', img: '${imgSrc}', rating: ${movie.rating || 0}, year: ${movie.year || 0} })">
+                            onclick="toggleFavorite({
+                                movie_id: ${movie.id},
+                                title: '${title}',
+                                img: '${imgSrc}',
+                                rating: ${movie.rating || 0},
+                                year: ${movie.year || 0}
+                            }); event.stopPropagation()">
                             <i class="${isFavorite ? 'fas' : 'far'} fa-heart"></i>
                         </button>
-                        <div class="quick-rating">
+                            <div class="quick-rating">
                             ${[1, 2, 3, 4, 5].map(star => `
                                 <span class="quick-star ${star <= userRating ? 'active' : ''}"
-                                    onclick="rateMovie(event, ${movie.id}, ${star}, '${title}')">★</span>
+                                    onclick="rateMovie(${movie.id}, ${star}); event.stopPropagation()">★</span>
                             `).join('')}
                         </div>
                     </div>
@@ -2164,6 +2580,77 @@ function initializeQuiz() {
         quizStarted: false
     };
 }
+async function testAllFunctions() {
+    console.log("=== Testing All Functions ===");
+    
+    if (!currentUser) {
+        console.log("Not logged in");
+        return;
+    }
+    
+    // Ensure data structure
+    ensureUserDataStructure();
+    
+    // Test 1: Rate a movie
+    console.log("Testing rating...");
+    try {
+        await rateMovie(1, 4);
+        console.log("✓ Rating test passed");
+    } catch (e) {
+        console.log("✗ Rating test failed:", e.message);
+    }
+    
+    // Wait
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Test 2: Add to favorites
+    console.log("Testing favorites...");
+    try {
+        await toggleFavorite({
+            movie_id: 1,
+            title: "Test Movie",
+            img: "https://placehold.co/150x200",
+            rating: 8.5,
+            year: 2023
+        });
+        console.log("✓ Favorites test passed");
+    } catch (e) {
+        console.log("✗ Favorites test failed:", e.message);
+    }
+    
+    // Wait
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Test 3: Add to watchlist
+    console.log("Testing watchlist...");
+    try {
+        await toggleWatchlist(null, 1, "Test Movie", "https://placehold.co/150x200", 8.5, 2023);
+        console.log("✓ Watchlist test passed");
+    } catch (e) {
+        console.log("✗ Watchlist test failed:", e.message);
+    }
+    
+    // Wait
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Test 4: Add to watch history
+    console.log("Testing watch history...");
+    try {
+        await addToWatchHistory({
+            id: 1,
+            title: "Test Movie",
+            img: "https://placehold.co/150x200",
+            rating: 8.5,
+            year: 2023
+        });
+        console.log("✓ Watch history test passed");
+    } catch (e) {
+        console.log("✗ Watch history test failed:", e.message);
+    }
+    
+    console.log("=== Tests Complete ===");
+}
+
 async function testEndpoints() {
     console.log("=== Testing Endpoints ===");
 
@@ -2252,9 +2739,21 @@ async function testEndpoints() {
 // ===== ENHANCED DOM CONTENT LOADED =====
 document.addEventListener("DOMContentLoaded", () => {
     initializeQuiz();
+    const saveUser = localStorage.getItem("currentUser");
+    if (saveUser) {
+        try {
+            currentUser = JSON.parse(saveUser);
+            ensureUserDataStructure(); // ADD THIS LINE
+            updateUIForUser();
+        } catch (e) {
+            console.error("Failed to parse saved user:", e);
+            localStorage.removeItem("currentUser");
+        }
+    }
 
     if (currentUser) {
         loadUserQuizData().then(() => {
+            ensureUserDataStructure()
             updatePreferencesPanel();
         });
     }
@@ -2315,7 +2814,20 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     });
-
+// Add this to your initialization code
+document.addEventListener('click', function(e) {
+    // Handle panel remove buttons
+    if (e.target.closest('.panel-remove-btn')) {
+        const btn = e.target.closest('.panel-remove-btn');
+        const movieId = btn.dataset.movieId;
+        const type = btn.dataset.type;
+        
+        if (type === 'watchlist') removeFromWatchlist(movieId);
+        else if (type === 'favorites') removeFromFavorites(movieId);
+        else if (type === 'watch-history') removeFromWatchHistory(movieId);
+        else if (type === 'ratings') removeFromRatings(movieId);
+    }
+});
     // Close modals on outside click
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('modal')) {
@@ -2324,4 +2836,90 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
     setTimeout(testEndpoints, 1000);
+    setTimeout(testAllFunctions, 1000);
+
 });
+
+
+// async function loadPreferences() {
+//     if (!currentUser) return;
+//     try {
+//         const res = await fetch(`/user/${currentUser.id}/history`);
+//         const data = await res.json();
+//         const container = document.getElementById('preferredGenres');
+//         container.innerHTML = (data.preferred_genres || []).map(g => `<span class="genre-tag">${g}</span>`).join('') || '<p>No preferences yet</p>';
+//     } catch (err) { console.error(err); }
+// }
+
+// function updatePreferredGenres() {
+//     if (!currentUser || !currentUser.ratings || Object.keys(currentUser.ratings).length < 3) {
+//         return;
+//     }
+
+//     // This is a simplified version - in production, you'd analyze movie genres
+//     if (!currentUser.preferred_genres || currentUser.preferred_genres.length === 0) {
+//         currentUser.preferred_genres = ['Action', 'Drama', 'Sci-Fi'];
+//     }
+// }
+
+// async function markAsWatched(event, movieId) {
+//     event.stopPropagation();
+//     if (!currentUser) return;
+
+//     try {
+//         const res = await fetch(`${base_url}/user/watchlist/mark-watched/${movieId}`, {
+//             method: "POST",
+//             headers: { "Authorization": `Bearer ${currentUser.token}` }
+//         });
+//         const data = await res.json();
+//         if (!res.ok) throw data;
+
+//         showNotification(data.msg, 'success');
+//         loadWatchlist();
+//         loadWatchHistory();
+//         updateUserStats();
+//     } catch (err) {
+//         showNotification(err.msg || 'Failed to mark as watched', 'error');
+//     }
+// }
+// async function autoAddSimilarMovies(movieId, title) {
+//     showNotification(`Looking for movies similar to "${title}"...`, 'info');
+
+//     try {
+//         const res = await fetch(`${base_url}/recommendations/similar/${movieId}`, {
+//             headers: { "Authorization": `Bearer ${currentUser.token}` }
+//         });
+//         const similarMovies = await res.json();
+//         if (!res.ok) throw similarMovies;
+
+//         // Example: add first 3 similar movies to watchlist automatically
+//         for (let movie of similarMovies.slice(0, 3)) {
+//             await toggleWatchlist({ stopPropagation: () => { } }, movie.id, movie.title, movie.img, movie.rating, movie.year);
+//         }
+
+//         showNotification(`Added similar movies to your watchlist!`, 'success');
+//     } catch (err) {
+//         showNotification(err.msg || "Failed to fetch similar movies", "error");
+//     }
+// }
+// Debug movie clicks
+document.addEventListener('click', (e) => {
+    const card = e.target.closest('.movie-card');
+    if (card) {
+        console.log('Movie clicked:', {
+            movieId: card.dataset.movieId,
+            hasUser: !!currentUser,
+            currentMovieContext: currentMovieContext.data.length
+        });
+    }
+});
+
+// Debug API responses
+const originalFetch = window.fetch;
+window.fetch = function(...args) {
+    console.log('Fetch:', args[0], args[1]?.method || 'GET');
+    return originalFetch.apply(this, args).then(res => {
+        console.log('Response:', args[0], res.status);
+        return res;
+    });
+};

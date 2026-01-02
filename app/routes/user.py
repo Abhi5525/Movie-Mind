@@ -64,25 +64,27 @@ def get_user_panel():
         print(f"ERROR in get_user_panel: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
-@user_bp.route("/rate", methods=["POST"])
+@user_bp.route("/ratings", methods=["POST"])
 @jwt_required()
 def rate_movie():
     user_id_str = get_jwt_identity()
-    user_id = int(user_id_str)  # Convert to int
+    user_id = int(user_id_str)
     
     data = request.json
-    movie_id = data.get("movie_id")
+    
+    # ACCEPT BOTH FORMATS: movieId OR movie_id
+    movie_id = data.get("movieId") or data.get("movie_id")
     rating = data.get("rating")
 
     if not movie_id or rating is None or not (1 <= rating <= 5):
-        return jsonify({"error": "Invalid movie_id or rating"}), 400
+        return jsonify({"success": False, "error": "Invalid movie_id or rating"}), 400
 
     # Check if user already rated this movie
     existing = UserRating.query.filter_by(user_id=user_id, movie_id=movie_id).first()
     if existing:
         existing.rating = rating
         existing.rated_at = datetime.utcnow()
+        action = "updated"
     else:
         new_rating = UserRating(
             user_id=user_id,
@@ -90,20 +92,40 @@ def rate_movie():
             rating=rating
         )
         db.session.add(new_rating)
+        action = "added"
 
     db.session.commit()
 
-    # Optional: compute preferred genres after rating
-    # You can query top genres based on ratings >= 4, similar to your current logic
-
     return jsonify({
         "success": True,
-        "message": f"Rating {rating} saved for movie {movie_id}",
+        "message": f"Rating {rating} {action} for movie {movie_id}",
         "user_id": user_id,
-        "total_ratings": UserRating.query.filter_by(user_id=user_id).count()
+        "movie_id": movie_id,
+        "rating": rating
     })
 
 
+@user_bp.route("/ratings", methods=["GET"])
+@jwt_required()
+def get_user_ratings():
+    user_id = int(get_jwt_identity())
+    ratings = UserRating.query.filter_by(user_id=user_id).all()
+    result = [
+        {
+            "movieId": r.movie_id,
+            "rating": r.rating,
+            "movie": {
+                "id": r.movie.id,
+                "title": r.movie.title,
+                "img": r.movie.img,
+                "rating": r.movie.rating,
+                "year": r.movie.year,
+                "genres": r.movie.genres
+            }
+        }
+        for r in ratings
+    ]
+    return jsonify(result), 200
 
 # GET user's watch history
 @user_bp.route("/watch-history/get", methods=["GET"])
@@ -127,42 +149,55 @@ def get_watch_history():
     ]
     return jsonify(result), 200
 
-# POST add to watch history
+def get_movie_id_from_request(data):
+    """Extract movie_id from request accepting both formats"""
+    return data.get("movieId") or data.get("movie_id")
+
 @user_bp.route("/watch-history", methods=["POST"])
 @jwt_required()
 def add_to_watch_history():
     user_id_str = get_jwt_identity()
-    user_id = int(user_id_str)  # Convert to int
+    user_id = int(user_id_str)
     
     data = request.json
-    movie_id = data.get("movie_id")
+    
+    # ACCEPT BOTH FORMATS
+    movie_id = data.get("movieId") or data.get("movie_id")
     title = data.get("title")
     img = data.get("img")
     rating = data.get("rating")
     year = data.get("year")
 
     if not movie_id:
-        return jsonify({"msg": "Movie ID is required"}), 400
+        return jsonify({"success": False, "msg": "Movie ID is required"}), 400
 
-    # Remove duplicate if exists
-    existing = WatchHistory.query.filter_by(user_id=user_id, movie_id=movie_id).first()
+    # Check if already exists in last 24 hours
+    existing = WatchHistory.query.filter_by(
+        user_id=user_id, 
+        movie_id=movie_id
+    ).first()
+    
     if existing:
-        db.session.delete(existing)
-        db.session.commit()
-
-    # Add new entry
-    new_entry = WatchHistory(
-        user_id=user_id,
-        movie_id=movie_id,
-        title=title,
-        img=img,
-        rating=rating,
-        year=year
-    )
-    db.session.add(new_entry)
+        # Update the existing entry's timestamp
+        existing.watched_date = datetime.utcnow()
+        message = "Watch history updated"
+    else:
+        # Add new entry
+        new_entry = WatchHistory(
+            user_id=user_id,
+            movie_id=movie_id,
+            title=title,
+            img=img,
+            rating=rating,
+            year=year
+        )
+        db.session.add(new_entry)
+        message = "Added to watch history"
+    
     db.session.commit()
 
-    return jsonify({"msg": "Added to watch history"}), 201
+    return jsonify({"success": True, "msg": message}), 201
+
 
 
 @user_bp.route("/history/<int:movie_id>", methods=["DELETE"])
@@ -188,7 +223,7 @@ def toggle_watchlist():
     user_id = int(user_id_str)  # Convert to int
     
     data = request.json
-    movie_id = data.get("movie_id")
+    movie_id = get_movie_id_from_request(data)
 
     if not movie_id:
         return jsonify({"error": "movie_id required"}), 400
@@ -245,7 +280,7 @@ def add_to_watchlist():
     user_id = int(user_id_str)  # Convert to int
     
     data = request.json
-    movie_id = data.get("movie_id")
+    movie_id = get_movie_id_from_request(data)
     title = data.get("title")
     img = data.get("img")
     rating = data.get("rating")
@@ -271,23 +306,20 @@ def add_to_watchlist():
     db.session.commit()
     return jsonify({"msg": "Added to watchlist"}), 201
 
-
-# DELETE remove from watchlist
 @user_bp.route("/watchlist/<int:movie_id>/remove", methods=["DELETE"])
 @jwt_required()
 def remove_from_watchlist(movie_id):
+    # movie_id comes from URL now
     user_id_str = get_jwt_identity()
-    user_id = int(user_id_str)  # Convert to int
+    user_id = int(user_id_str)
     
     item = Watchlist.query.filter_by(user_id=user_id, movie_id=movie_id).first()
     if not item:
-        return jsonify({"msg": "Movie not found in watchlist"}), 404
+        return jsonify({"success": False, "msg": "Movie not found in watchlist"}), 404
 
     db.session.delete(item)
     db.session.commit()
-    return jsonify({"msg": "Removed from watchlist"}), 200
-
-
+    return jsonify({"success": True, "msg": "Removed from watchlist"}), 200
 
 
 
