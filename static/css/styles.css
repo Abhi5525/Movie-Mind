@@ -1122,3 +1122,34 @@ footer {
     transform: translateX(0);
   }
 }
+/* Add to your CSS file */
+.search-loading {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+.search-box-container {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.search-box-container.focused {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 229, 255, 0.2);
+}
+
+.search-info {
+    background: rgba(0, 229, 255, 0.05);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.search-error {
+    background: rgba(255, 107, 107, 0.05);
+    border-radius: 10px;
+}

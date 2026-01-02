@@ -30,6 +30,9 @@ function getAuthHeaders() {
 
     return headers;
 }
+
+// ===== HELPER FUNCTIONS =====
+
 // Helper function to ensure user data has proper structure
 function ensureUserDataStructure() {
     if (!currentUser) return;
@@ -49,36 +52,30 @@ function ensureUserDataStructure() {
     
     saveUserData();
 }
-function refreshAllMovieCards() {
-    if (!currentMovieContext.data || !Array.isArray(currentMovieContext.data)) return;
-    
-    currentMovieContext.data.forEach(movie => {
-        if (!movie || !movie.id) return;
-        
-        // Check local state
-        const isInWatchlist = currentUser?.watchlist?.some(item => 
-            item.id === movie.id || item.movieId === movie.id || item.movie_id === movie.id
-        ) || false;
-        
-        const isFavorite = currentUser?.favorites?.some(fav => 
-            fav.id === movie.id || fav.movieId === movie.id || fav.movie_id === movie.id
-        ) || false;
-        
-        const isWatched = currentUser?.watch_history?.some(w => 
-            w.id === movie.id || w.movieId === movie.id || w.movie_id === movie.id
-        ) || false;
-        
-        const userRating = currentUser?.ratings?.[movie.id] || 0;
-        
-        // Update UI
-        updateMovieCardUI(movie.id, {
-            isInWatchlist,
-            isFavorite,
-            isWatched,
-            userRating
-        });
-    });
+
+function capitalizeFirstLetter(string) {
+    // Handle special cases
+    if (string === 'watch-history') {
+        return 'WatchHistory';
+    }
+    return string.charAt(0).toUpperCase() + string.slice(1);
 }
+
+function normalizeMovieId(movie) {
+    return movie.id || movie.movieId || movie.movie_id;
+}
+
+// Helper function to check if a movie is in an array
+function isMovieInArray(array, movieId) {
+    if (!array || !Array.isArray(array)) return false;
+    return array.some(item => 
+        String(item.id) === String(movieId) || 
+        String(item.movieId) === String(movieId) || 
+        String(item.movie_id) === String(movieId)
+    );
+}
+
+// ===== MODAL FUNCTIONS =====
 
 function showLoginModal() {
     closeModal('registerModal');
@@ -116,6 +113,7 @@ function switchToLogin() {
     showLoginModal();
 }
 
+// === CLEAR FORM ERRORS ===
 function clearFormErrors(modalId) {
     const form = document.getElementById(modalId === 'loginModal' ? 'loginForm' : 'registerForm');
     const errors = form.querySelectorAll('.error-message');
@@ -302,6 +300,8 @@ async function login(email, password) {
             ratings: {}  // Empty object
         };
  // Trigger custom event
+
+ setTimeout(() => forceSyncUserData(), 500);
         localStorage.setItem("currentUser", JSON.stringify(currentUser));
         updateUIForUser();
         showNotification('Login successful!', 'success');
@@ -357,7 +357,7 @@ function logout() {
     showNotification('Logged out successfully', 'info');
 }
 
-// Panel and UI
+// ==== PANEL AND UI FUNCTIONS
 function updatePreferencesPanel() {
     if (!currentUser) return;
 
@@ -411,7 +411,6 @@ function updateUIForUser() {
     }
 }
 // ===== USER PANEL =====
-
 async function showUserPanel() {
     if (!currentUser || !currentUser.token) {
         showNotification('Please login to view your profile', 'info');
@@ -440,34 +439,19 @@ async function showUserPanel() {
             throw new Error(data.error || 'Failed to load user panel');
         }
 
-        // Save current arrays BEFORE updating
-        const savedWatchlist = currentUser.watchlist || [];
-        const savedFavorites = currentUser.favorites || [];
-        const savedWatchHistory = currentUser.watch_history || [];
-        const savedRatings = currentUser.ratings || {};
+        // IMPORTANT: Load FRESH data from database when opening panel
+        // This ensures we have the latest data
+        await loadUserData();
 
-        // Update ONLY non-array fields
-        currentUser = {
-            ...currentUser,
-            name: data.name,
-            email: data.email,
-            joinDate: data.joinDate,
-            quiz_profile: data.quiz_profile,
-            // PRESERVE arrays - don't overwrite with numbers!
-            watchlist: savedWatchlist,
-            favorites: savedFavorites,
-            watch_history: savedWatchHistory,
-            ratings: savedRatings,
-            token: currentUser.token
-        };
-
+        // Update user info from backend response
+        currentUser.name = data.name;
+        currentUser.email = data.email;
+        currentUser.joinDate = data.joinDate;
+        currentUser.quiz_profile = data.quiz_profile;
         saveUserData();
 
-        // Update the panel UI (shows counts from backend)
+        // Update the panel UI
         updatePanelUI(data);
-
-        // Load user data - this will populate actual arrays
-        await loadUserData();
 
         // Show the modal
         const modal = document.getElementById('userPanelModal');
@@ -484,7 +468,6 @@ async function showUserPanel() {
         showNotification(`Failed to load user panel: ${err.message}`, 'error');
     }
 }
-
 
 function updatePanelUI(userData) {
     console.log("Updating panel UI with:", userData);
@@ -520,6 +503,38 @@ function updatePanelUI(userData) {
     }
 }
 
+function switchPanelTab(tabId) {
+    console.log('Switching to tab:', tabId);
+
+    // Remove active class from all tabs
+    document.querySelectorAll('.panel-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+
+    // Add active class to clicked tab button
+    const tabButtons = document.querySelectorAll(`.panel-tab`);
+    tabButtons.forEach(button => {
+        if (button.getAttribute('onclick')?.includes(tabId)) {
+            button.classList.add('active');
+        }
+    });
+
+    // Hide all panel contents
+    document.querySelectorAll('.panel-content').forEach(content => {
+        content.classList.remove('active');
+        content.style.display = 'none';
+    });
+
+    // Show the selected panel
+    const panel = document.getElementById(`${tabId}-panel`);
+    if (panel) {
+        panel.classList.add('active');
+        panel.style.display = 'block';
+    }
+}
+
+
+// LOAD USER DATA 
 async function loadUserData() {
     if (!currentUser) return;
 
@@ -566,6 +581,33 @@ if (!currentUser.ratings || typeof currentUser.ratings !== 'object') currentUser
 
     console.log("Stats updated:", { watchlistCount, moviesWatched, favoritesCount, moviesRated });
 }
+
+// ==== HELPER FUNCTIONS FOR PANEL AND MOVIE
+function refreshAllMovieCards() {
+    if (!currentMovieContext.data || !Array.isArray(currentMovieContext.data)) return;
+    
+    // First, ensure our local state is correct by checking the database
+    // But for performance, we'll update based on current local state
+    
+    currentMovieContext.data.forEach(movie => {
+        if (!movie || !movie.id) return;
+        
+        // Use helper functions for consistency
+        const isInWatchlist = isMovieInArray(currentUser?.watchlist, movie.id);
+        const isFavorite = isMovieInArray(currentUser?.favorites, movie.id);
+        const isWatched = isMovieInArray(currentUser?.watch_history, movie.id);
+        const userRating = currentUser?.ratings?.[movie.id] || 0;
+        
+        // Update UI
+        updateMovieCardUI(movie.id, {
+            isInWatchlist,
+            isFavorite,
+            isWatched,
+            userRating
+        });
+    });
+}
+
 // Helper function to create movie item for panels
 function createPanelMovieItem(movie, type = 'watchlist') {
     const item = document.createElement('div');
@@ -632,57 +674,6 @@ function createPanelMovieItem(movie, type = 'watchlist') {
     return item;
 }
 
-function capitalizeFirstLetter(string) {
-    // Handle special cases
-    if (string === 'watch-history') {
-        return 'WatchHistory';
-    }
-    return string.charAt(0).toUpperCase() + string.slice(1);
-}
-
-function switchPanelTab(tabId) {
-    console.log('Switching to tab:', tabId);
-
-    // Remove active class from all tabs
-    document.querySelectorAll('.panel-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-
-    // Add active class to clicked tab button
-    const tabButtons = document.querySelectorAll(`.panel-tab`);
-    tabButtons.forEach(button => {
-        if (button.getAttribute('onclick')?.includes(tabId)) {
-            button.classList.add('active');
-        }
-    });
-
-    // Hide all panel contents
-    document.querySelectorAll('.panel-content').forEach(content => {
-        content.classList.remove('active');
-        content.style.display = 'none';
-    });
-
-    // Show the selected panel
-    const panel = document.getElementById(`${tabId}-panel`);
-    if (panel) {
-        panel.classList.add('active');
-        panel.style.display = 'block';
-    }
-}
-function updateWatchlistProgress() {
-    if (!currentUser || !currentUser.watchlist) return;
-
-    const total = currentUser.watchlist.length;
-    const watched = currentUser.watchlist.filter(movie =>
-        currentUser.watch_history &&
-        currentUser.watch_history.some(watchedMovie => watchedMovie.id === movie.id)
-    ).length;
-
-    const progress = total > 0 ? Math.round((watched / total) * 100) : 0;
-
-    document.getElementById('watchlistProgressText').textContent = `${watched}/${total}`;
-    document.getElementById('watchlistProgressBar').style.width = `${progress}%`;
-}
 
 // ===== WATCHLIST FUNCTIONS =====
 async function addToWatchlist(movie) {
@@ -796,8 +787,24 @@ async function loadWatchlist() {
         showNotification('Failed to load watchlist', 'error');
     }
 }
-// ===== IMPROVED TOGGLE WATCHLIST =====
 
+function updateWatchlistProgress() {
+    if (!currentUser || !currentUser.watchlist) return;
+
+    const total = currentUser.watchlist.length;
+    const watched = currentUser.watchlist.filter(movie =>
+        currentUser.watch_history &&
+        currentUser.watch_history.some(watchedMovie => watchedMovie.id === movie.id)
+    ).length;
+
+    const progress = total > 0 ? Math.round((watched / total) * 100) : 0;
+
+    document.getElementById('watchlistProgressText').textContent = `${watched}/${total}`;
+    document.getElementById('watchlistProgressBar').style.width = `${progress}%`;
+}
+
+
+// ===== IMPROVED TOGGLE WATCHLIST =====
 async function toggleWatchlist(event, movieId, title, img, rating, year) {
     if (event) event.stopPropagation();
     if (!currentUser) {
@@ -805,10 +812,11 @@ async function toggleWatchlist(event, movieId, title, img, rating, year) {
         return;
     }
 
-    // Check local state
-    const wasInWatchlist = currentUser.watchlist?.some(w => 
-        w.id === movieId || w.movieId === movieId || w.movie_id === movieId
-    );
+    // Check if already in watchlist - if yes, show message and return
+    if (isMovieInArray(currentUser.watchlist, movieId)) {
+        showNotification('Already in watchlist. Remove from your panel if needed.', 'info');
+        return;
+    }
 
     try {
         const res = await fetch(`${base_url}/user/watchlist/toggle`, {
@@ -829,48 +837,117 @@ async function toggleWatchlist(event, movieId, title, img, rating, year) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed");
 
-        // Update local state based on response
-        if (data.message?.includes("Removed") || data.message?.includes("removed")) {
-            // Remove from local state
-            if (currentUser.watchlist) {
-                currentUser.watchlist = currentUser.watchlist.filter(w => 
-                    w.id !== movieId && w.movieId !== movieId && w.movie_id !== movieId
-                );
-            }
-        } else {
-            // Add to local state
-            if (!currentUser.watchlist) currentUser.watchlist = [];
-            currentUser.watchlist.push({ 
-                id: movieId, 
-                movie_id: movieId,
-                title, 
-                img, 
-                rating, 
-                year 
-            });
-        }
+        // Update local state - only add, never remove
+        if (!currentUser.watchlist) currentUser.watchlist = [];
+        currentUser.watchlist.push({ 
+            id: movieId, 
+            movie_id: movieId,
+            title, 
+            img, 
+            rating, 
+            year 
+        });
         saveUserData();
 
-        // Update UI for this card only
+        // Update UI for this card
         updateMovieCardUI(movieId, { 
-            isInWatchlist: !wasInWatchlist 
+            isInWatchlist: true 
         });
 
-        // Refresh panel if open
-        const panelModal = document.getElementById('userPanelModal');
-        if (panelModal && panelModal.style.display === 'flex') {
-            await loadWatchlist();
-            updateUserStats();
-        }
-
-        showNotification(data.message, 'success');
+        showNotification('Added to watchlist', 'success');
     } catch (err) {
         console.error('Toggle watchlist error:', err);
-        showNotification(err.message || 'Failed to update watchlist', 'error');
+        showNotification(err.message || 'Failed to add to watchlist', 'error');
     }
 }
 
-// ===== WATCH HISTORY FUNCTIONS =====
+
+async function clearWatchlist() {
+    if (!confirm('Clear your entire watchlist?')) return;
+
+    try {
+        const res = await fetch(`${base_url}/user/watchlist/clear`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showNotification('Watchlist cleared', 'success');
+
+            // Clear from currentUser
+            currentUser.watchlist = [];
+
+            // Update UI
+            document.getElementById('watchlistList').innerHTML = '';
+            document.getElementById('emptyWatchlist').style.display = 'block';
+
+            // Update stats
+            updateUserStats();
+            updateWatchlistProgress();
+
+            saveUserData();
+            setTimeout(refreshAllMovieCards, 100);
+        }
+    } catch (err) {
+        console.error('Error clearing watchlist:', err);
+        showNotification('Failed to clear watchlist', 'error');
+    }
+}
+
+async function removeFromWatchlist(movieId) {
+    console.log('removeFromWatchlist called with movieId:', movieId);
+    
+    if (!movieId || movieId === 'undefined') {
+        showNotification('Invalid movie ID', 'error');
+        return;
+    }
+
+    if (!confirm('Remove from watchlist?')) return;
+
+    try {
+        const movieIdNum = parseInt(movieId);
+        
+        const res = await fetch(`${base_url}/user/watchlist/${movieIdNum}/remove`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+
+        console.log('Remove response status:', res.status);
+        
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Failed to remove from watchlist');
+        }
+        
+        const data = await res.json();
+        showNotification(data.msg || 'Removed from watchlist', 'success');
+
+        // 1. Update local state
+        if (currentUser.watchlist) {
+            currentUser.watchlist = currentUser.watchlist.filter(movie => 
+                String(movie.id) !== String(movieId) && 
+                String(movie.movieId) !== String(movieId) &&
+                String(movie.movie_id) !== String(movieId)
+            );
+            saveUserData();
+        }
+
+        // 2. Update ALL movie cards
+        refreshAllMovieCards();
+
+        // 3. Reload watchlist in panel
+        await loadWatchlist();
+        
+    } catch (err) {
+        console.error('Error removing from watchlist:', err);
+        showNotification(err.message || 'Failed to remove from watchlist', 'error');
+    }
+}
+
+
+// ===== Watch HISTORY FUNCTIONS =====
 
 async function addToWatchHistory(movie) {
     if (!currentUser) {
@@ -978,40 +1055,6 @@ async function loadWatchHistory() {
     }
 }
 
-async function clearWatchlist() {
-    if (!confirm('Clear your entire watchlist?')) return;
-
-    try {
-        const res = await fetch(`${base_url}/user/watchlist/clear`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            showNotification('Watchlist cleared', 'success');
-
-            // Clear from currentUser
-            currentUser.watchlist = [];
-
-            // Update UI
-            document.getElementById('watchlistList').innerHTML = '';
-            document.getElementById('emptyWatchlist').style.display = 'block';
-
-            // Update stats
-            updateUserStats();
-            updateWatchlistProgress();
-
-            saveUserData();
-            setTimeout(refreshAllMovieCards, 100);
-        }
-    } catch (err) {
-        console.error('Error clearing watchlist:', err);
-        showNotification('Failed to clear watchlist', 'error');
-    }
-}
-
 async function clearWatchHistory() {
     if (!currentUser) return;
 
@@ -1046,108 +1089,6 @@ async function clearWatchHistory() {
         showNotification('Failed to clear watch history', 'error');
     }
 }
-async function removeFromWatchlist(movieId) {
-    console.log('removeFromWatchlist called with movieId:', movieId);
-    
-    if (!movieId || movieId === 'undefined') {
-        showNotification('Invalid movie ID', 'error');
-        return;
-    }
-
-    if (!confirm('Remove from watchlist?')) return;
-
-    try {
-        const movieIdNum = parseInt(movieId);
-        
-        const res = await fetch(`${base_url}/user/watchlist/${movieIdNum}/remove`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
-        });
-
-        console.log('Remove response status:', res.status);
-        
-        if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.error || 'Failed to remove from watchlist');
-        }
-        
-        const data = await res.json();
-        showNotification(data.msg || 'Removed from watchlist', 'success');
-
-        // 1. Update local state IMMEDIATELY
-        if (currentUser.watchlist) {
-            currentUser.watchlist = currentUser.watchlist.filter(movie => 
-                String(movie.id) !== String(movieId) && 
-                String(movie.movieId) !== String(movieId) &&
-                String(movie.movie_id) !== String(movieId)
-            );
-            saveUserData(); // Save to localStorage
-        }
-setTimeout(refreshAllMovieCards, 100);
-        // 2. Update UI on movie cards
-        updateMovieCardUI(movieIdNum, { isInWatchlist: false });
-
-        // 3. Reload watchlist in panel
-        await loadWatchlist();
-        
-    } catch (err) {
-        console.error('Error removing from watchlist:', err);
-        showNotification(err.message || 'Failed to remove from watchlist', 'error');
-    }
-}
-
-async function removeFromFavorites(movieId) {
-    console.log('removeFromFavorites called with movieId:', movieId);
-    
-    if (!movieId || movieId === 'undefined') {
-        showNotification('Invalid movie ID', 'error');
-        return;
-    }
-
-    if (!confirm('Remove from favorites?')) return;
-
-    try {
-        const movieIdNum = parseInt(movieId);
-        
-        const res = await fetch(`${base_url}/favorites/toggle`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ 
-                movie_id: movieIdNum 
-            })
-        });
-
-        const data = await res.json();
-        console.log('Remove favorites response:', data);
-        
-        if (res.ok) {
-            showNotification('Removed from favorites', 'success');
-
-            // 1. Update local state IMMEDIATELY
-            if (currentUser.favorites) {
-                currentUser.favorites = currentUser.favorites.filter(movie => 
-                    String(movie.id) !== String(movieId) && 
-                    String(movie.movieId) !== String(movieId) &&
-                    String(movie.movie_id) !== String(movieId)
-                );
-                saveUserData();
-            }
-            setTimeout(refreshAllMovieCards, 100);
-
-            // 2. Update UI on movie cards
-            updateMovieCardUI(movieIdNum, { isFavorite: false });
-            
-            // 3. Reload favorites in panel
-            await loadFavorites();
-        } else {
-            throw new Error(data.error || 'Failed to remove from favorites');
-        }
-    } catch (err) {
-        console.error('Error removing from favorites:', err);
-        showNotification('Failed to remove from favorites', 'error');
-    }
-}
-
 async function removeFromWatchHistory(movieId) {
     if (!confirm('Remove from watch history?')) return;
 
@@ -1184,7 +1125,9 @@ setTimeout(refreshAllMovieCards, 100);
         console.error('Error removing from watch history:', err);
         showNotification('Failed to remove from watch history', 'error');
     }
-}// ===== FAVORITES FUNCTIONS =====
+}
+
+// ===== FAVORITES FUNCTIONS =====
 
 async function toggleFavorite(eventOrMovieData, extraData) {
     let movieData;
@@ -1200,10 +1143,11 @@ async function toggleFavorite(eventOrMovieData, extraData) {
 
     const { movie_id, title, img, rating, year } = movieData;
     
-    // Check local state
-    const wasFavorite = currentUser.favorites?.some(f => 
-        f.id === movie_id || f.movieId === movie_id || f.movie_id === movie_id
-    );
+    // Check if already in favorites - if yes, show message and return
+    if (isMovieInArray(currentUser.favorites, movie_id)) {
+        showNotification('Already in favorites. Remove from your panel if needed.', 'info');
+        return;
+    }
 
     try {
         const res = await fetch(`${base_url}/favorites/toggle`, {
@@ -1224,47 +1168,29 @@ async function toggleFavorite(eventOrMovieData, extraData) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || data.error || "Toggle failed");
 
-        // Update local state based on response
-        if (data.message?.includes("Removed") || data.message?.includes("removed")) {
-            // Remove from local state
-            if (currentUser.favorites) {
-                currentUser.favorites = currentUser.favorites.filter(f => 
-                    f.id !== movie_id && f.movieId !== movie_id && f.movie_id !== movie_id
-                );
-            }
-        } else {
-            // Add to local state
-            if (!currentUser.favorites) currentUser.favorites = [];
-            currentUser.favorites.push({ 
-                id: movie_id, 
-                movie_id: movie_id,
-                title, 
-                img, 
-                rating, 
-                year 
-            });
-        }
+        // Update local state - only add, never remove
+        if (!currentUser.favorites) currentUser.favorites = [];
+        currentUser.favorites.push({ 
+            id: movie_id, 
+            movie_id: movie_id,
+            title, 
+            img, 
+            rating, 
+            year 
+        });
         saveUserData();
 
         // Update UI for this movie
         updateMovieCardUI(movie_id, { 
-            isFavorite: !wasFavorite 
+            isFavorite: true 
         });
 
-        // Refresh panel if open
-        const panelModal = document.getElementById('userPanelModal');
-        if (panelModal && panelModal.style.display === 'flex') {
-            await loadFavorites();
-            updateUserStats();
-        }
-
-        showNotification(data.message || "Favorite updated", 'success');
+        showNotification('Added to favorites', 'success');
     } catch (err) {
         console.error('Favorite toggle error:', err);
-        showNotification(err.message || 'Failed to update favorites', 'error');
+        showNotification(err.message || 'Failed to add to favorites', 'error');
     }
 }
-
 // UPDATED loadFavorites function
 async function loadFavorites() {
     if (!Array.isArray(currentUser.watchlist)) {
@@ -1320,6 +1246,59 @@ async function loadFavorites() {
         showNotification('Failed to load favorites', 'error');
     }
 }
+
+
+async function removeFromFavorites(movieId) {
+    console.log('removeFromFavorites called with movieId:', movieId);
+    
+    if (!movieId || movieId === 'undefined') {
+        showNotification('Invalid movie ID', 'error');
+        return;
+    }
+
+    if (!confirm('Remove from favorites?')) return;
+
+    try {
+        const movieIdNum = parseInt(movieId);
+        
+        const res = await fetch(`${base_url}/favorites/toggle`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ 
+                movie_id: movieIdNum 
+            })
+        });
+
+        const data = await res.json();
+        console.log('Remove favorites response:', data);
+        
+        if (res.ok) {
+            showNotification('Removed from favorites', 'success');
+
+            // 1. Update local state
+            if (currentUser.favorites) {
+                currentUser.favorites = currentUser.favorites.filter(movie => 
+                    String(movie.id) !== String(movieId) && 
+                    String(movie.movieId) !== String(movieId) &&
+                    String(movie.movie_id) !== String(movieId)
+                );
+                saveUserData();
+            }
+
+            // 2. Update ALL movie cards
+            refreshAllMovieCards();
+            
+            // 3. Reload favorites in panel
+            await loadFavorites();
+        } else {
+            throw new Error(data.error || 'Failed to remove from favorites');
+        }
+    } catch (err) {
+        console.error('Error removing from favorites:', err);
+        showNotification('Failed to remove from favorites', 'error');
+    }
+}
+
 async function clearFavorites() {
     if (!confirm('Clear all favorites?')) return;
     
@@ -1578,8 +1557,8 @@ async function removeFromRatings(movieId) {
         console.error('Error removing rating:', err);
         showNotification('Failed to remove rating. Try updating it to 0 stars instead.', 'error');
     }
-}// ===== PREFERENCES FUNCTIONS =====
-
+}
+//Movie Sections
 
 let currentMovieContext = {
     type: 'popular', // e.g., 'popular', 'search', 'genre', 'quiz', 'hybrid'
@@ -1674,20 +1653,10 @@ function renderMovies(list) {
             if (!movie || !movie.id || !movie.title) return;
 
                     
-            const isWatched = currentUser?.watch_history?.some ?
-                currentUser.watch_history.some(w => 
-                    w.id === movie.id || w.movieId === movie.id || w.movie_id === movie.id
-                ) || false : false;
-
-            const isInWatchlist = currentUser?.watchlist?.some ?
-                currentUser.watchlist.some(item => 
-                    item.id === movie.id || item.movieId === movie.id || item.movie_id === movie.id
-                ) || false : false;
-
-            const isFavorite = currentUser?.favorites?.some ?
-                currentUser.favorites.some(fav => 
-                    fav.id === movie.id || fav.movieId === movie.id || fav.movie_id === movie.id
-                ) || false : false;
+            // In renderMovies() function:
+const isWatched = isMovieInArray(currentUser?.watch_history, movie.id);
+const isInWatchlist = isMovieInArray(currentUser?.watchlist, movie.id);
+const isFavorite = isMovieInArray(currentUser?.favorites, movie.id);
 
             const userRating = currentUser?.ratings?.[movie.id] || 0;
             const title = movie.title.replace(/['"]/g, '&quot;');
@@ -1737,6 +1706,8 @@ function renderMovies(list) {
         isRendering = false;
     });
 }
+
+//This Fetch Recommendations
 async function fetchRecommendations(limit = 20) {
     const movieContainer = document.getElementById('movieContainer');
     if (!movieContainer) return;
@@ -1786,8 +1757,97 @@ async function fetchRecommendations(limit = 20) {
 }
 
 // Call this in your DOMContentLoaded
-
+//Search Query 
 let searchDebounceTimer;
+let searchBox, searchResultsAnchor;
+
+// Initialize search elements
+function initializeSearch() {
+    searchBox = document.getElementById('searchBox');
+    
+    // Create an anchor element for scrolling to results
+    searchResultsAnchor = document.createElement('div');
+    searchResultsAnchor.id = 'searchResultsAnchor';
+    searchResultsAnchor.style.cssText = `
+        position: absolute;
+        top: -80px;
+        visibility: hidden;
+    `;
+    
+    const movieContainer = document.getElementById('movieContainer');
+    if (movieContainer && movieContainer.parentNode) {
+        movieContainer.parentNode.insertBefore(searchResultsAnchor, movieContainer);
+    }
+    
+    if (searchBox) {
+        let searchTimer;
+        
+        searchBox.addEventListener('input', (e) => {
+            clearTimeout(searchTimer);
+            const query = e.target.value.trim();
+            
+            // Show loading indicator immediately for better UX
+            if (query.length > 2) {
+                showSearchLoading(query);
+            }
+            
+            searchTimer = setTimeout(() => {
+                performSearch(query);
+            }, 400); // Reduced debounce time for more responsive feel
+        });
+
+        searchBox.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                clearTimeout(searchTimer);
+                const query = e.target.value.trim();
+                if (query) {
+                    performSearch(query);
+                    // Focus on search results
+                    setTimeout(() => {
+                        searchResultsAnchor.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                        });
+                    }, 300);
+                }
+            }
+        });
+        
+        // Clear search on escape
+        searchBox.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.target.value = '';
+                fetchRecommendations();
+            }
+        });
+        
+        // Focus management
+        searchBox.addEventListener('focus', () => {
+            searchBox.parentElement.classList.add('focused');
+        });
+        
+        searchBox.addEventListener('blur', () => {
+            searchBox.parentElement.classList.remove('focused');
+        });
+    }
+}
+
+// Show loading state for search
+function showSearchLoading(query) {
+    const movieContainer = document.getElementById('movieContainer');
+    if (!movieContainer) return;
+    
+    movieContainer.innerHTML = `
+        <div class="search-loading" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+            <i class="fas fa-search fa-spin" style="font-size: 40px; color: #00e5ff; margin-bottom: 15px;"></i>
+            <p style="font-size: 16px; color: #00e5ff; margin-bottom: 10px;">Searching for "${query}"</p>
+            <p style="font-size: 12px; opacity: 0.7;">Finding the best matches...</p>
+        </div>
+    `;
+    
+    // Update section title immediately
+    document.getElementById('sectionTitle').textContent = `🔍 Searching for "${query}"`;
+}
 async function performSearch(query) {
     const movieContainer = document.getElementById('movieContainer');
     if (!movieContainer) return;
@@ -1802,47 +1862,171 @@ async function performSearch(query) {
     abortActiveFetch();
     activeFetchController = new AbortController();
 
-    // Show loading only if not already showing
-    if (!movieContainer.innerHTML.includes('loading')) {
-        movieContainer.innerHTML = `
-            <div class="loading" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
-                <i class="fas fa-search fa-spin" style="font-size: 40px; color: #00e5ff;"></i>
-                <p>Searching for "${query}"...</p>
-            </div>
-        `;
-    }
-
+    // Update UI immediately for better UX
+    document.getElementById('sectionTitle').textContent = `🔍 Results for "${query}"`;
     closeModal('userPanelModal');
-    document.getElementById('sectionTitle').textContent = `🔍 Search Results for "${query}"`;
+    closeModal('quizModal');
 
-    // Debounce to prevent flicker
+    // Debounce
     searchDebounceTimer = setTimeout(async () => {
         try {
-            const response = await fetch(`${base_url}/search?query=${encodeURIComponent(query)}`, {
+            // Show loading state
+            movieContainer.innerHTML = `
+                <div class="search-loading" style="grid-column: 1 / -1; text-align: center; padding: 60px;">
+                    <i class="fas fa-search fa-spin" style="font-size: 50px; color: #00e5ff;"></i>
+                    <p style="font-size: 18px; margin-top: 20px; color: #00e5ff;">Searching for "${query}"</p>
+                </div>
+            `;
+
+            // TRY EXACT MATCH FIRST
+            const response = await fetch(`${base_url}/search?query=${encodeURIComponent(query)}&exact=true&limit=10`, {
                 signal: activeFetchController.signal
             });
+            
             if (!response.ok) throw new Error('Search failed');
+            
             const data = await response.json();
             const movies = data.results || [];
-            currentMovieContext = { type: 'search', params: { query }, data: movies };
-            renderMovies(movies);
+            
             if (movies.length === 0) {
-                document.getElementById('sectionTitle').textContent = `🔍 No results for "${query}"`;
+                // If no exact matches, try broader search
+                const broadResponse = await fetch(`${base_url}/search?query=${encodeURIComponent(query)}&exact=false&limit=15`, {
+                    signal: activeFetchController.signal
+                });
+                
+                if (!broadResponse.ok) throw new Error('Broad search failed');
+                
+                const broadData = await broadResponse.json();
+                const broadMovies = broadData.results || [];
+                
+                if (broadMovies.length === 0) {
+                    // Show no results message
+                    showNoResults(query);
+                    return;
+                }
+                
+                currentMovieContext = { 
+                    type: 'search', 
+                    params: { query }, 
+                    data: broadMovies 
+                };
+                renderMovies(broadMovies);
+                
+                // Show broader search message
+                setTimeout(() => {
+                    showSearchInfo(query, broadMovies.length, false);
+                }, 100);
+            } else {
+                // We have exact matches
+                currentMovieContext = { 
+                    type: 'search', 
+                    params: { query }, 
+                    data: movies 
+                };
+                renderMovies(movies);
+                
+                // Show exact match message
+                setTimeout(() => {
+                    showSearchInfo(query, movies.length, true);
+                }, 100);
             }
+            
+            // Auto-scroll to results
+            setTimeout(() => {
+                if (searchResultsAnchor) {
+                    searchResultsAnchor.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                }
+            }, 150);
+            
         } catch (err) {
             if (err.name !== 'AbortError') {
                 console.error('Search error:', err);
-                movieContainer.innerHTML = `
-                    <div class="no-results" style="grid-column:1/-1;text-align:center;padding:60px;">
-                        Search failed. 
-                        <button onclick="fetchRecommendations()" style="margin-top: 10px; padding: 8px 20px; background: #00e5ff; color: black; border: none; border-radius: 20px; cursor: pointer;">
-                            Show Popular
-                        </button>
-                    </div>`;
+                showSearchError(query);
             }
         }
     }, 300);
 }
+
+function showSearchInfo(query, count, isExact = false) {
+    const movieContainer = document.getElementById('movieContainer');
+    if (!movieContainer || !movieContainer.firstChild) return;
+    
+    const searchInfo = document.createElement('div');
+    searchInfo.className = 'search-info';
+    searchInfo.style.cssText = `
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 20px;
+        color: #b0b7c3;
+        font-size: 14px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 20px;
+    `;
+    
+    if (isExact && count === 1) {
+        searchInfo.innerHTML = `
+            <p style="color: #00e5ff; font-weight: 600;">
+                <i class="fas fa-check-circle"></i> Found exact match
+            </p>
+            <p style="font-size: 12px; opacity: 0.7; margin-top: 5px;">
+                Showing the movie "${query}"
+            </p>
+        `;
+    } else if (isExact) {
+        searchInfo.innerHTML = `
+            <p>Found ${count} exact match${count !== 1 ? 'es' : ''} for "${query}"</p>
+            <p style="font-size: 12px; opacity: 0.7; margin-top: 5px;">
+                Showing title matches
+            </p>
+        `;
+    } else {
+        searchInfo.innerHTML = `
+            <p>Found ${count} related movie${count !== 1 ? 's' : ''} for "${query}"</p>
+            <p style="font-size: 12px; opacity: 0.7; margin-top: 5px;">
+                Showing relevant matches by title, genre, and cast
+            </p>
+        `;
+    }
+    
+    movieContainer.insertBefore(searchInfo, movieContainer.firstChild);
+}
+
+function showNoResults(query) {
+    const movieContainer = document.getElementById('movieContainer');
+    if (!movieContainer) return;
+    
+    movieContainer.innerHTML = `
+        <div class="no-results" style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+            <i class="fas fa-search" style="font-size: 60px; opacity: 0.3; margin-bottom: 20px;"></i>
+            <h3 style="color: #00e5ff; margin-bottom: 10px;">No exact matches found for "${query}"</h3>
+            <p style="opacity: 0.7; margin-bottom: 20px;">Try these suggestions:</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0;">
+                <button onclick="performSearch('action')" style="padding: 8px 16px; background: rgba(0,229,255,0.1); color: #00e5ff; border: 1px solid #00e5ff; border-radius: 20px; cursor: pointer;">
+                    Action Movies
+                </button>
+                <button onclick="performSearch('comedy')" style="padding: 8px 16px; background: rgba(0,229,255,0.1); color: #00e5ff; border: 1px solid #00e5ff; border-radius: 20px; cursor: pointer;">
+                    Comedy Movies
+                </button>
+                <button onclick="performSearch('drama')" style="padding: 8px 16px; background: rgba(0,229,255,0.1); color: #00e5ff; border: 1px solid #00e5ff; border-radius: 20px; cursor: pointer;">
+                    Drama Movies
+                </button>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button onclick="fetchRecommendations()" 
+                        style="padding: 10px 25px; background: #00e5ff; color: black; 
+                               border: none; border-radius: 25px; cursor: pointer; 
+                               font-weight: 600; transition: all 0.3s;">
+                    Show Trending Movies
+                </button>
+            </div>
+        </div>
+    `;
+    document.getElementById('sectionTitle').textContent = `🔍 No results for "${query}"`;
+}
+
 // ===== Filter by Genre =====
 async function filterByGenre(genre) {
     if (genre === 'All') {
@@ -1900,7 +2084,7 @@ async function filterByGenre(genre) {
     }
 }
 
-
+//Personalized Movie Recommendation From Quiz Results
 async function getPersonalizedRecommendations() {
     const movieContainer = document.getElementById('movieContainer');
     if (!movieContainer) return;
@@ -2021,6 +2205,8 @@ async function getPersonalizedRecommendations() {
         }
     }
 }
+
+//Begining of Quiz Section
 // ===== QUIZ QUESTIONS DATA =====
 const quizQuestions = [
     {
@@ -2266,6 +2452,7 @@ function startQuiz() {
     document.getElementById('quizModal').style.display = 'flex';
 }
 
+//Showing the Quiz Step
 function showQuizStep(stepIndex) {
     const quizContainer = document.getElementById('quizContainer');
     const question = quizQuestions[stepIndex];
@@ -2319,6 +2506,7 @@ function showQuizStep(stepIndex) {
     }
 }
 
+//Selecting the quiz Options
 function selectQuizOption(questionIndex, optionIndex) {
     const options = document.querySelectorAll(`#quizOptions .quiz-option`);
     options.forEach(opt => opt.classList.remove('selected'));
@@ -2353,6 +2541,7 @@ function restartQuiz() {
     showQuizStep(0);
 }
 
+//Analyze Quiz Answers
 function analyzeQuizAnswers() {
     const answers = quizState.answers;
     let genreScores = {};
@@ -2394,6 +2583,7 @@ function analyzeQuizAnswers() {
     };
 }
 
+//Save Quiz Result
 async function saveQuizResults(profile) {
     if (!currentUser) return null;
 
@@ -2459,7 +2649,7 @@ async function saveQuizResults(profile) {
     }
 }
 
-
+//Get latest Quiz Result
 async function getLatestQuizResult() {
     if (!currentUser) return null;
 
@@ -2479,6 +2669,7 @@ async function getLatestQuizResult() {
     }
 }
 
+//Load Quiz Data
 async function loadUserQuizData() {
     if (!currentUser) return;
 
@@ -2713,6 +2904,7 @@ function initializeQuiz() {
     };
 }
 
+//Functions to test EndPoints
 async function testEndpoints() {
     console.log("=== Testing Endpoints ===");
 
@@ -2798,42 +2990,64 @@ async function testEndpoints() {
         }
     }
 }
-// ===== ENHANCED DOM CONTENT LOADED =====
+
+// Data sync between local Storage and database
+async function forceSyncUserData() {
+    if (!currentUser) return;
+    
+    console.log('Force syncing user data...');
+    
+    try {
+        // Load fresh data from all endpoints
+        await Promise.all([
+            loadWatchlist(),
+            loadWatchHistory(),
+            loadFavorites(),
+            loadRatings()
+        ]);
+        
+        // Update stats
+        updateUserStats();
+        updateWatchlistProgress();
+        
+        // Refresh UI
+        refreshAllMovieCards();
+        
+        console.log('User data synced successfully');
+    } catch (err) {
+        console.error('Error syncing user data:', err);
+    }
+}
+
+// ===== DOM CONTENT LOADED =====
 document.addEventListener("DOMContentLoaded", () => {
+    // 1. Initialize quiz system
     initializeQuiz();
-    const saveUser = localStorage.getItem("currentUser");
-    if (saveUser) {
+    
+    // 2. Restore user session from localStorage
+    const savedUser = localStorage.getItem("currentUser");
+    if (savedUser) {
         try {
-            currentUser = JSON.parse(saveUser);
-            ensureUserDataStructure(); // ADD THIS LINE
-            updateUIForUser();
+            currentUser = JSON.parse(savedUser);
+            ensureUserDataStructure(); // Ensure arrays exist
+            updateUIForUser(); // Update UI for logged in user
+            
+            // Load quiz data if user exists
+            loadUserQuizData().then(() => {
+                updatePreferencesPanel();
+            });
         } catch (e) {
             console.error("Failed to parse saved user:", e);
             localStorage.removeItem("currentUser");
+            currentUser = null;
         }
     }
 
-    if (currentUser) {
-        loadUserQuizData().then(() => {
-            ensureUserDataStructure()
-            updatePreferencesPanel();
-        });
-    }
-
-    document.getElementById('movieContainer')?.addEventListener('click', (e) => {
-        const card = e.target.closest('.movie-card');
-        if (card && currentUser) {
-            const movieId = parseInt(card.dataset.movieId);
-            const movie = currentMovieContext.data.find(m => m.id === movieId);
-            if (movie) {
-                addToWatchHistory(movie);
-            }
-        }
-    });
-    // Initialize search with proper debounce
+    // 3. Initialize search functionality
     const searchBox = document.getElementById('searchBox');
     if (searchBox) {
         let searchTimer;
+        
         searchBox.addEventListener('input', (e) => {
             clearTimeout(searchTimer);
             const query = e.target.value.trim();
@@ -2849,32 +3063,48 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
-// Add close handler for user panel modal
-document.getElementById('userPanelModal')?.addEventListener('click', function(e) {
-    if (e.target === this || e.target.classList.contains('close-btn')) {
-        this.style.display = 'none';
-        // Refresh movie cards when closing panel
-        setTimeout(refreshAllMovieCards, 100);
-    }
-});
-    // Restore user session
-    const savedUser = localStorage.getItem("currentUser");
-    if (savedUser) {
-        try {
-            currentUser = JSON.parse(savedUser);
-            updateUIForUser();
-        } catch (e) {
-            console.error("Failed to parse saved user:", e);
-            localStorage.removeItem("currentUser");
+initializeSearch();
+    
+    // 4. Set up user panel modal close handler
+    document.getElementById('userPanelModal')?.addEventListener('click', function(e) {
+        if (e.target === this || e.target.classList.contains('close-btn')) {
+            this.style.display = 'none';
+            // Refresh movie cards when closing panel
+            setTimeout(refreshAllMovieCards, 100);
         }
-    }
+    });
 
-    // Initial fetch
-    setTimeout(() => fetchRecommendations(), 100);
+    // 5. Set up panel remove button handlers (event delegation)
+    document.addEventListener('click', function(e) {
+        // Handle panel remove buttons
+        const removeBtn = e.target.closest('.panel-remove-btn');
+        if (removeBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const movieId = removeBtn.dataset.movieId;
+            const type = removeBtn.dataset.type;
+            
+            if (!movieId || movieId === 'undefined') return;
+            
+            switch(type) {
+                case 'watchlist':
+                    removeFromWatchlist(movieId);
+                    break;
+                case 'favorites':
+                    removeFromFavorites(movieId);
+                    break;
+                case 'watch-history':
+                    removeFromWatchHistory(movieId);
+                    break;
+                case 'ratings':
+                    removeFromRatings(movieId);
+                    break;
+            }
+        }
+    });
 
-
-
-    // Movie card click for watch history
+    // 6. Movie card click for watch history (event delegation)
     document.addEventListener('click', (e) => {
         const card = e.target.closest('.movie-card');
         if (card && currentUser) {
@@ -2885,112 +3115,19 @@ document.getElementById('userPanelModal')?.addEventListener('click', function(e)
             }
         }
     });
-// Add this to your initialization code
-document.addEventListener('click', function(e) {
-    // Handle panel remove buttons
-    if (e.target.closest('.panel-remove-btn')) {
-        const btn = e.target.closest('.panel-remove-btn');
-        const movieId = btn.dataset.movieId;
-        const type = btn.dataset.type;
-        
-        if (type === 'watchlist') removeFromWatchlist(movieId);
-        else if (type === 'favorites') removeFromFavorites(movieId);
-        else if (type === 'watch-history') removeFromWatchHistory(movieId);
-        else if (type === 'ratings') removeFromRatings(movieId);
-    }
-});
-    // Close modals on outside click
+
+    // 7. Close modals on outside click
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('modal')) {
             e.target.style.display = 'none';
             abortActiveFetch();
         }
     });
+
+    // 8. Initial movie load
+    setTimeout(() => fetchRecommendations(), 100);
+
+    // 9. Run tests (remove in production)
     setTimeout(testEndpoints, 1000);
     setTimeout(testAllFunctions, 1000);
-
 });
-
-
-// async function loadPreferences() {
-//     if (!currentUser) return;
-//     try {
-//         const res = await fetch(`/user/${currentUser.id}/history`);
-//         const data = await res.json();
-//         const container = document.getElementById('preferredGenres');
-//         container.innerHTML = (data.preferred_genres || []).map(g => `<span class="genre-tag">${g}</span>`).join('') || '<p>No preferences yet</p>';
-//     } catch (err) { console.error(err); }
-// }
-
-// function updatePreferredGenres() {
-//     if (!currentUser || !currentUser.ratings || Object.keys(currentUser.ratings).length < 3) {
-//         return;
-//     }
-
-//     // This is a simplified version - in production, you'd analyze movie genres
-//     if (!currentUser.preferred_genres || currentUser.preferred_genres.length === 0) {
-//         currentUser.preferred_genres = ['Action', 'Drama', 'Sci-Fi'];
-//     }
-// }
-
-// async function markAsWatched(event, movieId) {
-//     event.stopPropagation();
-//     if (!currentUser) return;
-
-//     try {
-//         const res = await fetch(`${base_url}/user/watchlist/mark-watched/${movieId}`, {
-//             method: "POST",
-//             headers: { "Authorization": `Bearer ${currentUser.token}` }
-//         });
-//         const data = await res.json();
-//         if (!res.ok) throw data;
-
-//         showNotification(data.msg, 'success');
-//         loadWatchlist();
-//         loadWatchHistory();
-//         updateUserStats();
-//     } catch (err) {
-//         showNotification(err.msg || 'Failed to mark as watched', 'error');
-//     }
-// }
-// async function autoAddSimilarMovies(movieId, title) {
-//     showNotification(`Looking for movies similar to "${title}"...`, 'info');
-
-//     try {
-//         const res = await fetch(`${base_url}/recommendations/similar/${movieId}`, {
-//             headers: { "Authorization": `Bearer ${currentUser.token}` }
-//         });
-//         const similarMovies = await res.json();
-//         if (!res.ok) throw similarMovies;
-
-//         // Example: add first 3 similar movies to watchlist automatically
-//         for (let movie of similarMovies.slice(0, 3)) {
-//             await toggleWatchlist({ stopPropagation: () => { } }, movie.id, movie.title, movie.img, movie.rating, movie.year);
-//         }
-
-//         showNotification(`Added similar movies to your watchlist!`, 'success');
-//     } catch (err) {
-//         showNotification(err.msg || "Failed to fetch similar movies", "error");
-//     }
-// }
-// Debug movie clicks
-document.addEventListener('click', (e) => {
-    const card = e.target.closest('.movie-card');
-    if (card) {
-        console.log('Movie clicked:', {
-            movieId: card.dataset.movieId,
-            hasUser: !!currentUser,
-            currentMovieContext: currentMovieContext.data.length
-        });
-    }
-});
-
-// Debug API responses
-const originalFetch = window.fetch;
-window.fetch = function(...args) {
-    console.log('Fetch:', args[0], args[1]?.method || 'GET');
-    return originalFetch.apply(this, args).then(res => {
-        console.log('Response:', args[0], res.status);
-        return res;
-    });
-};
