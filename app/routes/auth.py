@@ -3,10 +3,51 @@ from flask import Blueprint, request, jsonify
 from app.models.users import User  # Make sure this import is correct
 from app.database import db
 from flask_jwt_extended import create_access_token
-from datetime import timedelta
+from datetime import timedelta, datetime
 import traceback
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+
+# Add this admin login route to your existing auth.py
+@auth_bp.route('/admin/login', methods=['POST'])
+def admin_login():
+    """Admin login endpoint - uses same JWT system"""
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({'error': 'Email and password required'}), 400
+    
+    # Find user
+    user = User.query.filter_by(email=email).first()
+    
+    # Check if user exists, password is correct, AND user is admin
+    if user and user.check_password(password) and user.is_admin:
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.session.commit()
+        
+        # Create access token (same as regular login)
+        access_token = create_access_token(
+        identity=str(user.id),  # Make sure this is also a string
+        expires_delta=timedelta(days=7)
+    )
+        
+        return jsonify({
+            'success': True,
+            'access_token': access_token,
+            'is_admin': True,
+            'user': {
+                'id': user.id,
+                'name': user.name,
+                'email': user.email,
+                'is_admin': user.is_admin
+            }
+        })
+    
+    return jsonify({'error': 'Invalid admin credentials'}), 401
 
 @auth_bp.route("/register", methods=["POST"])
 def register():

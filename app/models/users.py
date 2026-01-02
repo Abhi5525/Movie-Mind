@@ -13,6 +13,10 @@ class User(db.Model):
     # Add quiz profile fields to User
     quiz_profile_type = db.Column(db.String(100))
     quiz_taken_at = db.Column(db.DateTime)
+
+    is_admin = db.Column(db.Boolean, default=False)      # NEW
+    is_active = db.Column(db.Boolean, default=True)      # NEW  
+    last_login = db.Column(db.DateTime)                  # NEW
     
     # Relationships
     watchlist = db.relationship('Watchlist', backref='user', lazy=True)

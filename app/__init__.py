@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from app.models.data_loader import MovieDataStore
 from app.models.users import User
@@ -14,6 +14,8 @@ from .routes.quiz import quiz_bp
 from flask_jwt_extended import JWTManager
 from datetime import timedelta
 from flask_migrate import Migrate
+# Import the admin blueprint
+from .routes.admin import admin_bp
 
 import os
 
@@ -60,6 +62,8 @@ def create_app():
     app.register_blueprint(user_bp)  # User specific prefix
     app.register_blueprint(quiz_bp)  # Quiz specific prefix
     app.register_blueprint(favorites_bp)
+    app.register_blueprint(admin_bp)
+
     
     migrate = Migrate(app, db)
     with app.app_context():
@@ -70,6 +74,17 @@ def create_app():
     app.config['MOVIE_STORE'] = store
     app.config['RECOMMENDER'] = recommender
     app.config['USER_INTERACTIONS'] = {}
+
+    
+    @app.route('/admin-login')
+    def admin_login_page():
+        """Serve admin login page"""
+        return send_from_directory(app.static_folder, 'admin-login.html')
+
+    @app.route('/admin/')
+    def admin_dashboard_page():
+        """Serve admin dashboard"""
+        return send_from_directory(app.static_folder, 'admin.html')
 
     # ✅ Serve HTML at root
     @app.route('/')
@@ -94,5 +109,6 @@ def create_app():
                 'path': str(rule)
             })
         return jsonify(routes)
+    
 
     return app

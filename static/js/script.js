@@ -1652,7 +1652,13 @@ function renderMovies(list) {
         list.forEach(movie => {
             if (!movie || !movie.id || !movie.title) return;
 
-                    
+                  console.log('Movie image data:', {
+            title: movie.title,
+            img: movie.img,
+            poster_path: movie.poster_path,
+            image_url: movie.image_url,
+            hasImage: movie.img || movie.poster_path || movie.image_url
+        });  
             // In renderMovies() function:
 const isWatched = isMovieInArray(currentUser?.watch_history, movie.id);
 const isInWatchlist = isMovieInArray(currentUser?.watchlist, movie.id);
@@ -3129,5 +3135,5 @@ initializeSearch();
 
     // 9. Run tests (remove in production)
     setTimeout(testEndpoints, 1000);
-    setTimeout(testAllFunctions, 1000);
+    
 });
