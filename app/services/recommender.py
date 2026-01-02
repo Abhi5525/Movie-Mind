@@ -64,14 +64,20 @@ class MovieRecommender:
     def get_similar_by_genre(self, genre, top_n=10):
         try:
             genre_lower = self._normalize_text(genre)
+            # Get all movies with this genre
             genre_movies = [m for m in self.movies if genre_lower in self._normalize_text(m.get("genres"))]
+            
+            # Sort by rating (highest first)
             genre_movies.sort(key=lambda x: x.get("rating", 0), reverse=True)
+            
+            # Return top N
             return genre_movies[:top_n]
+            
         except Exception as e:
             logging.error(f"Error in genre-based recommendation for '{genre}'", exc_info=True)
+            # Fallback: get popular movies
             return self.get_popular_movies(top_n)
-
-    # ===== Popular Movies =====
+        # ===== Popular Movies =====
     def get_popular_movies(self, top_n=10, rating_weight=0.7, popularity_weight=0.3):
         try:
             popular_movies = self.movies.copy()

@@ -167,3 +167,5 @@ def clear_favorites():
     Favorite.query.filter_by(user_id=user_id).delete()
     db.session.commit()
     return jsonify({"message": "Favorites cleared"})
+
+

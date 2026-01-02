@@ -264,3 +264,152 @@ def get_similar_movies(movie_id):
     similar_movies = Movie.query.filter(Movie.id != movie_id, Movie.genres.ilike(f"%{genres[0]}%")).limit(10).all()
     
     return jsonify([m.to_dict() for m in similar_movies]), 200
+
+
+# In your Flask routes (recommendations.py or similar)
+from app.models.users import UserRating, Favorite
+from app.services.recommender import MovieRecommender
+
+@recommendations_bp.route("/personalized", methods=["GET"])
+@jwt_required()
+def get_personalized_recommendations():
+    """Get personalized recommendations based on quiz OR hybrid OR popular"""
+    user_id = int(get_jwt_identity())
+    
+    try:
+        # Check if user has quiz results
+        latest_quiz = QuizResult.query.filter_by(user_id=user_id)\
+            .order_by(QuizResult.created_at.desc()).first()
+        
+        # PRIORITY 1: Quiz recommendations
+        if latest_quiz and latest_quiz.top_genres:
+            try:
+                top_genres = json.loads(latest_quiz.top_genres) if latest_quiz.top_genres else []
+                tags = json.loads(latest_quiz.tags) if latest_quiz.tags else []
+                
+                if top_genres:
+                    # Use the existing quiz recommendation logic
+                    params = {
+                        "genres": ",".join(top_genres),
+                        "tags": ",".join(tags) if tags else "",
+                        "user_id": str(user_id),
+                        "limit": 20
+                    }
+                    
+                    # Call quiz_recommendations internally
+                    quiz_response = quiz_recommendations()
+                    if isinstance(quiz_response, tuple):
+                        # If it returns a tuple (response, status), extract the JSON
+                        quiz_data = quiz_response[0].get_json()
+                    else:
+                        quiz_data = quiz_response.get_json()
+                    
+                    if quiz_data.get("success") and quiz_data.get("recommendations"):
+                        return jsonify({
+                            "success": True,
+                            "recommendations": quiz_data["recommendations"],
+                            "count": len(quiz_data["recommendations"]),
+                            "source": "quiz",
+                            "profile_name": latest_quiz.profile_name,
+                            "message": f"Based on your {latest_quiz.profile_name} profile"
+                        })
+            except Exception as e:
+                print(f"Quiz recommendations error: {e}")
+                # Fall through to next priority
+        
+        # PRIORITY 2: Hybrid recommendations (if user has interactions)
+        try:
+            # Check if user has any interactions (favorites, ratings, watchlist)
+            from app.models.users import Favorite, UserRating, Watchlist
+            
+            favorites_count = Favorite.query.filter_by(user_id=user_id).count()
+            ratings_count = UserRating.query.filter_by(user_id=user_id).count()
+            watchlist_count = Watchlist.query.filter_by(user_id=user_id).count()
+            
+            if favorites_count > 0 or ratings_count > 0 or watchlist_count > 0:
+                # User has interactions, use hybrid recommendations
+                store = current_app.config['MOVIE_STORE']
+                recommender = current_app.config['RECOMMENDER']
+                
+                # Get hybrid recommendations
+                recommendations = recommender.hybrid_recommendations(
+                    user_id=str(user_id),
+                    top_n=20
+                )
+                
+                if recommendations and len(recommendations) > 0:
+                    return jsonify({
+                        "success": True,
+                        "recommendations": recommendations,
+                        "count": len(recommendations),
+                        "source": "hybrid",
+                        "message": "Based on your watch history and preferences"
+                    })
+        except Exception as e:
+            print(f"Hybrid recommendations error: {e}")
+            # Fall through to next priority
+        
+        # PRIORITY 3: Popular movies (fallback)
+        store = current_app.config['MOVIE_STORE']
+        recommender = current_app.config['RECOMMENDER']
+        popular = recommender.get_popular_movies(20)
+        
+        return jsonify({
+            "success": True,
+            "recommendations": popular,
+            "count": len(popular),
+            "source": "popular",
+            "message": "Trending movies"
+        })
+        
+    except Exception as e:
+        print(f"Personalized recommendations error: {e}")
+        # Ultimate fallback
+        store = current_app.config['MOVIE_STORE']
+        all_movies = store.get_all_movies()[:20]
+        return jsonify({
+            "success": True,
+            "recommendations": all_movies,
+            "count": len(all_movies),
+            "source": "fallback",
+            "message": "Popular movies"
+        })
+    
+@recommendations_bp.route("/highest-rated", methods=['GET'])
+def highest_rated_movies():
+    """
+    Get highest rated movies
+    """
+    try:
+        top_n = int(request.args.get('top_n', 20))
+        store = current_app.config['MOVIE_STORE']
+        
+        # Get all movies
+        all_movies = store.get_all_movies()
+        
+        # Sort by rating (highest first)
+        sorted_movies = sorted(all_movies, 
+                              key=lambda x: x.get('rating', 0), 
+                              reverse=True)
+        
+        # Filter out movies with no rating
+        rated_movies = [m for m in sorted_movies if m.get('rating', 0) > 0]
+        
+        return jsonify({
+            "success": True,
+            "recommendations": rated_movies[:top_n],
+            "count": len(rated_movies[:top_n]),
+            "algorithm": "Highest Rated"
+        })
+        
+    except Exception as e:
+        print(f"Error getting highest rated movies: {e}")
+        # Fallback to popular
+        recommender = current_app.config['RECOMMENDER']
+        popular = recommender.get_popular_movies(20)
+        return jsonify({
+            "success": True,
+            "recommendations": popular,
+            "count": len(popular),
+            "algorithm": "Popular (Fallback)"
+        })
