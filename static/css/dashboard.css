@@ -1,4 +1,4 @@
-
+body.admin-panel{ 
         /* Admin Layout Styles */
         .admin-container {
             display: flex;
@@ -620,3 +620,4 @@
                 grid-template-columns: 1fr;
             }
         }
+    }
