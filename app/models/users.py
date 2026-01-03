@@ -136,6 +136,8 @@ class Favorite(db.Model):
             "rating": self.rating,
             "year": self.year,
             "addedDate": self.added_date.isoformat() if self.added_date else None
+   
+   
         }
 import json
 class QuizResult(db.Model):
