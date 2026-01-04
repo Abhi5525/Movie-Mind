@@ -743,3 +743,53 @@ def quiz_debug():
         'sample_data': sample_data,
         'quiz_columns': [c.key for c in QuizResult.__table__.columns] if hasattr(QuizResult, '__table__') else []
     })
+
+@admin_bp.route('/movies/bulk', methods=['POST'])
+@jwt_required()
+def bulk_upload_movies():
+    try:
+        data = request.get_json()
+        
+        if not data or not isinstance(data, list):
+            return jsonify({'success': False, 'message': 'Invalid data format'}), 400
+        
+        movies_added = 0
+        errors = []
+        
+        for i, movie_data in enumerate(data):
+            try:
+                # Validate required fields
+                if not movie_data.get('title'):
+                    errors.append(f'Row {i+1}: Missing title')
+                    continue
+                
+                # Create new movie
+                movie = Movie(
+                    title=movie_data.get('title'),
+                    description=movie_data.get('description', ''),
+                    release_year=movie_data.get('release_year') or movie_data.get('year'),
+                    genre=movie_data.get('genre') or movie_data.get('genres', ''),
+                    rating=float(movie_data.get('rating') or movie_data.get('vote_average') or 0),
+                    duration=int(movie_data.get('duration') or movie_data.get('runtime') or 0),
+                    poster_url=movie_data.get('poster_url') or movie_data.get('poster_path', '')
+                )
+                
+                db.session.add(movie)
+                movies_added += 1
+                
+            except Exception as e:
+                errors.append(f'Row {i+1}: {str(e)}')
+                continue
+        
+        if movies_added > 0:
+            db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Added {movies_added} movies successfully',
+            'added': movies_added,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

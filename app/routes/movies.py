@@ -21,6 +21,7 @@ def get_all_movies():
     """
     store = current_app.config['MOVIE_STORE']
     movies = store.get_all_movies()
+    
     if not movies:
       return jsonify({"error": "No movies loaded"}), 500
 

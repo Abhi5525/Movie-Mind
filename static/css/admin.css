@@ -1381,4 +1381,136 @@ body.admin-panel {
             max-width: none;
         }
     }
+    /* Bulk Upload Styles */
+.upload-method-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+}
+
+.method-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    flex: 1;
+    justify-content: center;
+}
+
+.method-option:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary-color);
+}
+
+.method-option.active {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.method-option i {
+    font-size: 1.2rem;
+}
+
+.upload-section {
+    display: none;
+}
+
+.upload-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 40px 20px;
+    text-align: center;
+    transition: all var(--transition-normal);
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.upload-area:hover {
+    border-color: var(--primary-color);
+    background: rgba(15, 23, 42, 0.8);
+}
+
+.upload-area.drag-over {
+    border-color: var(--primary-color);
+    background: rgba(59, 130, 246, 0.1);
+    transform: scale(1.02);
+}
+
+.upload-area i {
+    font-size: 3rem;
+    color: var(--text-muted);
+    margin-bottom: 15px;
+}
+
+.upload-area h4 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.upload-area p {
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.upload-area small {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.csv-template, .json-example {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 20px;
+}
+
+.csv-template h5, .json-example h5 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.json-example pre {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--border-radius-sm);
+    padding: 15px;
+    overflow-x: auto;
+    margin-top: 10px;
+}
+
+.json-example code {
+    color: #86efac;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.preview-table-container {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+}
+
+.preview-table-container table {
+    margin: 0;
+}
+
+.preview-table-container td {
+    padding: 10px;
+    font-size: 0.9rem;
+}
 }

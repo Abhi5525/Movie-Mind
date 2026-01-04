@@ -1201,26 +1201,467 @@ showNotification(message, type = 'info') {
     // Return for debugging
     return toast;
 }
-    showBulkUploadModal() {
-        const modalHtml = `
-            <div class="modal">
-                <div class="modal-header">
-                    <h3 class="modal-title">Bulk Upload</h3>
-                    <button class="modal-close" onclick="admin.closeModal()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="empty-state">
-                        <i class="fas fa-upload"></i>
-                        <h3>Bulk Upload Coming Soon</h3>
-                        <p>Upload multiple movies via CSV or JSON functionality will be available soon.</p>
+showBulkUploadModal() {
+    const modalHtml = `
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-upload"></i> Bulk Movie Upload</h3>
+                <button class="modal-close" onclick="admin.closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Upload Method Selection -->
+                <div class="upload-method-selector">
+                    <div class="method-option active" data-method="csv">
+                        <i class="fas fa-file-csv"></i>
+                        <span>CSV Upload</span>
+                    </div>
+                    <div class="method-option" data-method="json">
+                        <i class="fas fa-file-code"></i>
+                        <span>JSON Upload</span>
+                    </div>
+                    <div class="method-option" data-method="manual">
+                        <i class="fas fa-keyboard"></i>
+                        <span>Manual Entry</span>
                     </div>
                 </div>
+
+                <!-- CSV Upload Section -->
+                <div class="upload-section active" id="csvSection">
+                    <div class="upload-area" id="csvUploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h4>Upload CSV File</h4>
+                        <p>Drag & drop or click to upload CSV file</p>
+                        <small>Supported format: .csv with movie data</small>
+                        <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+                        <button class="btn btn-secondary" onclick="document.getElementById('csvFileInput').click()">
+                            <i class="fas fa-folder-open"></i> Choose File
+                        </button>
+                    </div>
+                    
+                    <div class="csv-template" style="margin-top: 20px;">
+                        <h5><i class="fas fa-download"></i> Download Template</h5>
+                        <p>Use our template to ensure correct format</p>
+                        <button class="btn btn-sm" onclick="admin.downloadCSVTemplate()">
+                            <i class="fas fa-download"></i> Download CSV Template
+                        </button>
+                    </div>
+                </div>
+
+                <!-- JSON Upload Section -->
+                <div class="upload-section" id="jsonSection">
+                    <div class="upload-area" id="jsonUploadArea">
+                        <i class="fas fa-file-import"></i>
+                        <h4>Upload JSON File</h4>
+                        <p>Drag & drop or click to upload JSON file</p>
+                        <small>Supported format: .json with movie data</small>
+                        <input type="file" id="jsonFileInput" accept=".json" style="display: none;">
+                        <button class="btn btn-secondary" onclick="document.getElementById('jsonFileInput').click()">
+                            <i class="fas fa-folder-open"></i> Choose File
+                        </button>
+                    </div>
+                    
+                    <div class="json-example" style="margin-top: 20px;">
+                        <h5><i class="fas fa-code"></i> JSON Format Example</h5>
+                        <pre><code>[
+  {
+    "title": "Movie Title",
+    "description": "Movie description...",
+    "release_year": 2024,
+    "genre": "Action, Drama",
+    "rating": 8.5,
+    "duration": 120
+  }
+]</code></pre>
+                    </div>
+                </div>
+
+                <!-- Manual Entry Section -->
+                <div class="upload-section" id="manualSection">
+                    <div class="manual-entry">
+                        <h4><i class="fas fa-keyboard"></i> Manual Movie Entry</h4>
+                        <p>Enter movie details in JSON format (one per line)</p>
+                        <textarea id="manualJsonInput" placeholder='{"title": "Movie Title", "description": "...", "release_year": 2024, "genre": "Action", "rating": 8.5}' 
+                                  rows="10" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);"></textarea>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button class="btn btn-sm" onclick="admin.addMoreManualFields()">
+                                <i class="fas fa-plus"></i> Add Another
+                            </button>
+                            <button class="btn btn-sm" onclick="admin.clearManualFields()">
+                                <i class="fas fa-trash"></i> Clear All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Section -->
+                <div class="preview-section" style="display: none; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                    <h4><i class="fas fa-eye"></i> Preview (3 movies)</h4>
+                    <div class="preview-table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Year</th>
+                                    <th>Genre</th>
+                                    <th>Rating</th>
+                                </tr>
+                            </thead>
+                            <tbody id="previewTableBody">
+                                <!-- Preview rows will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Error/Success Messages -->
+                <div class="upload-messages" style="margin-top: 20px;">
+                    <div class="alert" id="uploadMessage" style="display: none;"></div>
+                </div>
             </div>
-        `;
-        
-        this.showModal(modalHtml);
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="admin.closeModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="btn btn-primary" id="uploadBtn" onclick="admin.processBulkUpload()" disabled>
+                    <i class="fas fa-upload"></i> Upload Movies
+                </button>
+            </div>
+        </div>
+    `;
+    
+    this.showModal(modalHtml);
+    
+    // Initialize upload functionality
+    this.initializeBulkUpload();
+}
+
+// Bulk Upload Methods
+initializeBulkUpload() {
+    // Method selector
+    const methodOptions = document.querySelectorAll('.method-option');
+    methodOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            methodOptions.forEach(opt => opt.classList.remove('active'));
+            option.classList.add('active');
+            
+            // Show selected section
+            const method = option.dataset.method;
+            document.querySelectorAll('.upload-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(`${method}Section`).classList.add('active');
+        });
+    });
+
+    // File upload handlers
+    this.setupFileUpload('csvFileInput', 'csvUploadArea');
+    this.setupFileUpload('jsonFileInput', 'jsonUploadArea');
+    
+    // Manual input handler
+    const manualInput = document.getElementById('manualJsonInput');
+    if (manualInput) {
+        manualInput.addEventListener('input', () => {
+            this.validateUploadData();
+        });
+    }
+}
+
+setupFileUpload(inputId, dropAreaId) {
+    const fileInput = document.getElementById(inputId);
+    const dropArea = document.getElementById(dropAreaId);
+    
+    if (!fileInput || !dropArea) return;
+    
+    // Click to upload
+    dropArea.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+            fileInput.click();
+        }
+    });
+    
+    // Drag and drop
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => {
+            dropArea.classList.add('drag-over');
+        });
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => {
+            dropArea.classList.remove('drag-over');
+        });
+    });
+    
+    dropArea.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            this.handleFileSelect(files[0], inputId);
+        }
+    });
+    
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            this.handleFileSelect(e.target.files[0], inputId);
+        }
+    });
+}
+
+handleFileSelect(file, inputId) {
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileType = inputId.includes('csv') ? 'csv' : 'json';
+    
+    // Validate file type
+    if (fileType === 'csv' && !file.name.endsWith('.csv')) {
+        this.showUploadMessage('Please upload a CSV file', 'error');
+        return;
     }
     
+    if (fileType === 'json' && !file.name.endsWith('.json')) {
+        this.showUploadMessage('Please upload a JSON file', 'error');
+        return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        this.showUploadMessage('File size should be less than 5MB', 'error');
+        return;
+    }
+    
+    // Read file
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            let data;
+            if (fileType === 'csv') {
+                data = this.parseCSV(e.target.result);
+            } else {
+                data = JSON.parse(e.target.result);
+            }
+            
+            // Store data for upload
+            this.uploadData = data;
+            
+            // Show preview
+            this.showPreview(data);
+            
+            // Enable upload button
+            uploadBtn.disabled = false;
+            this.showUploadMessage(`Loaded ${data.length} movies successfully`, 'success');
+            
+        } catch (error) {
+            this.showUploadMessage(`Error parsing file: ${error.message}`, 'error');
+        }
+    };
+    
+    reader.readAsText(file);
+}
+
+parseCSV(csvText) {
+    const lines = csvText.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    
+    return lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim());
+        const movie = {};
+        headers.forEach((header, index) => {
+            movie[header] = values[index] || '';
+        });
+        return movie;
+    }).filter(movie => movie.title); // Filter out empty rows
+}
+
+showPreview(data) {
+    const previewSection = document.querySelector('.preview-section');
+    const previewBody = document.getElementById('previewTableBody');
+    
+    if (!previewSection || !previewBody) return;
+    
+    previewSection.style.display = 'block';
+    
+    // Clear previous preview
+    previewBody.innerHTML = '';
+    
+    // Show first 3 items as preview
+    const previewItems = data.slice(0, 3);
+    
+    previewItems.forEach(movie => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${movie.title || 'N/A'}</td>
+            <td>${movie.release_year || movie.year || 'N/A'}</td>
+            <td>${movie.genre || movie.genres || 'N/A'}</td>
+            <td>${movie.rating || movie.vote_average || 'N/A'}</td>
+        `;
+        previewBody.appendChild(row);
+    });
+    
+    // Update preview title
+    const previewTitle = previewSection.querySelector('h4');
+    if (previewTitle) {
+        previewTitle.innerHTML = `<i class="fas fa-eye"></i> Preview (${data.length} movies)`;
+    }
+}
+
+validateUploadData() {
+    const uploadBtn = document.getElementById('uploadBtn');
+    const manualInput = document.getElementById('manualJsonInput');
+    
+    if (!manualInput || manualInput.value.trim() === '') {
+        uploadBtn.disabled = true;
+        return;
+    }
+    
+    try {
+        // Parse manual JSON input
+        const inputText = manualInput.value.trim();
+        let data;
+        
+        if (inputText.startsWith('[')) {
+            // Array of movies
+            data = JSON.parse(inputText);
+        } else {
+            // Single movie or one per line
+            const lines = inputText.split('\n').filter(line => line.trim());
+            data = lines.map(line => {
+                try {
+                    return JSON.parse(line.trim());
+                } catch {
+                    return null;
+                }
+            }).filter(movie => movie);
+        }
+        
+        if (data.length > 0) {
+            this.uploadData = data;
+            this.showPreview(data);
+            uploadBtn.disabled = false;
+            this.showUploadMessage(`Validated ${data.length} movies`, 'success');
+        } else {
+            this.showUploadMessage('No valid movies found', 'error');
+            uploadBtn.disabled = true;
+        }
+    } catch (error) {
+        this.showUploadMessage('Invalid JSON format', 'error');
+        uploadBtn.disabled = true;
+    }
+}
+
+showUploadMessage(message, type = 'info') {
+    const messageDiv = document.getElementById('uploadMessage');
+    if (!messageDiv) return;
+    
+    messageDiv.textContent = message;
+    messageDiv.className = `alert alert-${type}`;
+    messageDiv.style.display = 'block';
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 5000);
+}
+processBulkUpload() {
+    const uploadBtn = document.getElementById('uploadBtn');
+    
+    if (!this.uploadData || this.uploadData.length === 0) {
+        this.showUploadMessage('No data to upload', 'error');
+        return;
+    }
+    
+    // Disable button and show loading
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    
+    // Show processing message
+    this.showUploadMessage(`Uploading ${this.uploadData.length} movies...`, 'info');
+    
+    // Make API call
+    fetch('/admin/movies/bulk', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCSRFToken()
+        },
+        body: JSON.stringify(this.uploadData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            this.showUploadMessage(data.message, 'success');
+            
+            // Close modal after success
+            setTimeout(() => {
+                this.closeModal();
+                this.showNotification(`Successfully added ${data.added} movies!`, 'success');
+                
+                // Refresh movies list if on movies page
+                if (this.currentPage === 'movies') {
+                    this.loadMovies();
+                }
+                
+                // Refresh dashboard stats
+                if (this.currentPage === 'dashboard') {
+                    this.loadDashboard();
+                }
+            }, 2000);
+        } else {
+            this.showUploadMessage(`Upload failed: ${data.message}`, 'error');
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Movies';
+        }
+    })
+    .catch(error => {
+        this.showUploadMessage(`Upload error: ${error.message}`, 'error');
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Movies';
+    });
+}// Helper methods
+downloadCSVTemplate() {
+    const csvContent = 'title,description,release_year,genre,rating,duration,poster_url\n' +
+                      'Movie Title 1,Description of movie 1,2024,Action,Drama,8.5,120,https://example.com/poster1.jpg\n' +
+                      'Movie Title 2,Description of movie 2,2023,Comedy,Romance,7.8,95,https://example.com/poster2.jpg\n' +
+                      'Movie Title 3,Description of movie 3,2022,Sci-Fi,Thriller,8.2,130,https://example.com/poster3.jpg';
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'movie_upload_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+addMoreManualFields() {
+    const manualInput = document.getElementById('manualJsonInput');
+    if (manualInput) {
+        manualInput.value += '\n{"title": "", "description": "", "release_year": "", "genre": "", "rating": ""}';
+        manualInput.focus();
+    }
+}
+
+clearManualFields() {
+    const manualInput = document.getElementById('manualJsonInput');
+    if (manualInput && confirm('Clear all manual entries?')) {
+        manualInput.value = '';
+        this.uploadData = null;
+        const previewSection = document.querySelector('.preview-section');
+        if (previewSection) {
+            previewSection.style.display = 'none';
+        }
+        const uploadBtn = document.getElementById('uploadBtn');
+        if (uploadBtn) {
+            uploadBtn.disabled = true;
+        }
+    }
+}
     logout() {
     localStorage.removeItem('token');  // ✅ Remove 'token'
     window.location.href = '/admin-login';

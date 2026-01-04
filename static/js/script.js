@@ -34,6 +34,20 @@ function getAuthHeaders() {
 // ===== HELPER FUNCTIONS =====
 
 // Helper function to ensure user data has proper structure
+function formatRuntime(minutes) {
+    if (!minutes || minutes <= 0) return '';
+    
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours === 0) {
+        return `${mins}m`;
+    } else if (mins === 0) {
+        return `${hours}h`;
+    } else {
+        return `${hours}h ${mins}m`;
+    }
+}
 function ensureUserDataStructure() {
     if (!currentUser) return;
     
@@ -981,6 +995,7 @@ async function addToWatchHistory(movie) {
         }
 
         showNotification(`Added "${movie.title}" to your watch history`, 'success');
+        // updateMovieCardUI(movie.id, { isWatched: true });
 
         // Update local user data if needed
         if (currentUser.watch_history) {
@@ -995,6 +1010,7 @@ async function addToWatchHistory(movie) {
             saveUserData();
         }
 
+        setTimeout(refreshAllMovieCards, 100);
     } catch (err) {
         console.error('Watch history error:', err);
         showNotification(err.message || 'Failed to add to watch history', 'error');
@@ -1618,6 +1634,7 @@ function updateMovieCardUI(movieId, updates) {
         }
     }
 }
+
 // ===== Render Movies =====
 function renderMovies(list) {
     if (isRendering) return;
@@ -1660,6 +1677,8 @@ function renderMovies(list) {
             img: movie.img,
             poster_path: movie.poster_path,
             image_url: movie.image_url,
+            runtime: movie.runtime,
+
             hasImage: movie.img || movie.poster_path || movie.image_url
         });  
             // In renderMovies() function:
@@ -1674,6 +1693,7 @@ const isFavorite = isMovieInArray(currentUser?.favorites, movie.id);
             const movieCard = document.createElement('div');
             movieCard.className = 'movie-card';
             movieCard.dataset.movieId = movie.id;
+   
             movieCard.innerHTML = `
                 ${isWatched ? '<div class="watchlist-status">Watched</div>' : ''}
                 <span class="rating">⭐ ${movie.rating || 'N/A'}</span>
@@ -1681,8 +1701,24 @@ const isFavorite = isMovieInArray(currentUser?.favorites, movie.id);
                 <div class="movie-info">
                     <h3>${movie.title}</h3>
                     <p>${movie.genres || "Unknown Genre"}</p>
-                    ${movie.year ? `<p style="font-size: 12px; opacity: 0.7; margin-top: 5px;">${movie.year}</p>` : ''}
-                    <div class="movie-actions-grid">
+                    <p style="
+                            font-size: 12px; 
+                            opacity: 0.7; 
+                            margin-top: 5px;
+                            display: flex;
+                            gap: 8px;
+                            align-items: center;
+                            flex-wrap: wrap;
+                        ">
+                            ${movie.year || movie.release_year ? `
+                                <span>${movie.year || movie.release_year}</span>
+                            ` : ''}
+                            ${movie.runtime_formatted || (movie.runtime && formatRuntime(movie.runtime)) ? `
+                                ${movie.year || movie.release_year ? '<span style="opacity: 0.5;">•</span>' : ''}
+                                <span>${movie.runtime_formatted || formatRuntime(movie.runtime)}</span>
+                            ` : ''}
+                        </p>
+                            <div class="movie-actions-grid">
                         <button class="action-btn watchlist ${isInWatchlist ? 'active' : ''}"
                             onclick="toggleWatchlist(event, ${movie.id}, '${title}', '${imgSrc}', ${movie.rating || 0}, ${movie.year || 0})">
                             <i class="${isInWatchlist ? 'fas' : 'far'} fa-bookmark"></i>
@@ -1693,7 +1729,8 @@ const isFavorite = isMovieInArray(currentUser?.favorites, movie.id);
                                 title: '${title}',
                                 img: '${imgSrc}',
                                 rating: ${movie.rating || 0},
-                                year: ${movie.year || 0}
+                                year: ${movie.year || 0},
+                                runtime: '${movie.runtime_formatted || ''}'
                             }); event.stopPropagation()">
                             <i class="${isFavorite ? 'fas' : 'far'} fa-heart"></i>
                         </button>

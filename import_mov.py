@@ -12,16 +12,18 @@ def import_movies():
             id=int(row['id']),
             title=row['title'],
             genres=row.get('genres'),
-            rating=row.get('rating', 0.0),
-            year=row.get('year'),
+            rating=float(row.get('rating', 0.0)),
+            year=int(row.get('year')),
+            runtime=int(row.get('runtime')) if pd.notnull(row.get('runtime')) else None, # Added this
             director=row.get('director'),
             cast=row.get('cast'),
             plot=row.get('plot'),
             keywords=row.get('keywords'),
-            popularity=row.get('popularity', 0.0),
-            img=row.get('img')  # optional
+            popularity=float(row.get('popularity', 0.0)),
+            img=row.get('img')
         )
-        db.session.merge(movie)  # merge updates if already exists
+        db.session.merge(movie)
+    
     db.session.commit()
     print("Movies imported successfully!")
 
