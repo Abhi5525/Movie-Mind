@@ -113,59 +113,102 @@ def analyze_movies():
 
 
 
+# favorites_bp.py - Complete backend routes
+
 @favorites_bp.route("/", methods=["GET"])
 @jwt_required()
 def get_favorites():
+    """Get all favorites for current user"""
     user_id_str = get_jwt_identity()
-    user_id = int(user_id_str)  # Convert to int
-        
+    user_id = int(user_id_str)
+    
     favorites = Favorite.query.filter_by(user_id=user_id).all()
     return jsonify([fav.to_dict() for fav in favorites])
 
-
-
-@favorites_bp.route("/toggle", methods=["POST"])
+@favorites_bp.route("/add", methods=["POST"])
 @jwt_required()
-def toggle_favorite():
+def add_favorite():
+    """Add a movie to favorites"""
     user_id_str = get_jwt_identity()
-    user_id = int(user_id_str)  # Convert to int
-        
+    user_id = int(user_id_str)
+    
     data = request.json
     movie_id = data.get("movie_id")
-
-    if not movie_id:
-        return jsonify({"error": "movie_id required"}), 400
-
-    favorite = Favorite.query.filter_by(user_id=user_id, movie_id=movie_id).first()
-
-    if favorite:
-        # Remove
-        db.session.delete(favorite)
-        db.session.commit()
-        return jsonify({"message": "Removed from favorites", "movie_id": movie_id})
-    else:
-        # Add
-        new_fav = Favorite(
-            user_id=user_id,
-            movie_id=movie_id,
-            title=data.get("title"),
-            img=data.get("img"),
-            rating=data.get("rating"),
-            year=data.get("year")
-        )
-        db.session.add(new_fav)
-        db.session.commit()
-        return jsonify({"message": "Added to favorites", "movie": new_fav.to_dict()})
     
+    if not movie_id:
+        return jsonify({"error": "movie_id is required"}), 400
+    
+    # Check if already favorited
+    existing = Favorite.query.filter_by(user_id=user_id, movie_id=movie_id).first()
+    if existing:
+        return jsonify({"error": "Movie already in favorites"}), 409
+    
+    # Add to favorites
+    new_fav = Favorite(
+        user_id=user_id,
+        movie_id=movie_id,
+        title=data.get("title"),
+        img=data.get("img"),
+        rating=data.get("rating"),
+        year=data.get("year")
+    )
+    db.session.add(new_fav)
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "message": "Added to favorites",
+        "movie": new_fav.to_dict()
+    }), 201
+
+@favorites_bp.route("/remove/<int:movie_id>", methods=["DELETE"])
+@jwt_required()
+def remove_favorite(movie_id):
+    """Remove a movie from favorites"""
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)
+    
+    # Find the favorite
+    favorite = Favorite.query.filter_by(user_id=user_id, movie_id=movie_id).first()
+    
+    if not favorite:
+        return jsonify({"error": "Movie not found in favorites"}), 404
+    
+    # Remove from database
+    db.session.delete(favorite)
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "message": "Removed from favorites",
+        "movie_id": movie_id
+    }), 200
 
 @favorites_bp.route("/clear", methods=["POST"])
 @jwt_required()
 def clear_favorites():
+    """Clear all favorites for current user"""
     user_id_str = get_jwt_identity()
-    user_id = int(user_id_str)  # Convert to int
+    user_id = int(user_id_str)
     
     Favorite.query.filter_by(user_id=user_id).delete()
     db.session.commit()
-    return jsonify({"message": "Favorites cleared"})
+    
+    return jsonify({
+        "success": True,
+        "message": "All favorites cleared"
+    }), 200
 
-
+@favorites_bp.route("/check/<int:movie_id>", methods=["GET"])
+@jwt_required()
+def check_favorite(movie_id):
+    """Check if a movie is in favorites"""
+    user_id_str = get_jwt_identity()
+    user_id = int(user_id_str)
+    
+    favorite = Favorite.query.filter_by(user_id=user_id, movie_id=movie_id).first()
+    
+    return jsonify({
+        "is_favorite": favorite is not None,
+        "movie_id": movie_id
+    })

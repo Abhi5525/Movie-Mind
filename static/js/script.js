@@ -273,6 +273,8 @@ async function login(email, password) {
         });
 
         const data = await res.json();
+        access_token = data.access_token;
+        localStorage.setItem("access_token", access_token);
 
         if (!res.ok) {
             if (res.status === 401) {
@@ -1150,7 +1152,7 @@ async function toggleFavorite(eventOrMovieData, extraData) {
     }
 
     try {
-        const res = await fetch(`${base_url}/favorites/toggle`, {
+        const res = await fetch(`${base_url}/favorites/add`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -1193,8 +1195,8 @@ async function toggleFavorite(eventOrMovieData, extraData) {
 }
 // UPDATED loadFavorites function
 async function loadFavorites() {
-    if (!Array.isArray(currentUser.watchlist)) {
-        currentUser.watchlist = [];
+    if (!Array.isArray(currentUser.favorites)) {
+        currentUser.favorites = [];
     }
     if (!currentUser) return;
 
@@ -1227,7 +1229,7 @@ async function loadFavorites() {
         // NORMALIZE DATA
         const normalizedData = data.map(item => ({
             ...item,
-            id: item.id || item.movie_id
+            id: item.movie_id
         }));
 
         // Update currentUser
@@ -1261,11 +1263,11 @@ async function removeFromFavorites(movieId) {
     try {
         const movieIdNum = parseInt(movieId);
         
-        const res = await fetch(`${base_url}/favorites/toggle`, {
-            method: 'POST',
+        const res = await fetch(`${base_url}/favorites/remove/${movieIdNum}`, {
+            method: 'DELETE',
             headers: getAuthHeaders(),
             body: JSON.stringify({ 
-                movie_id: movieIdNum 
+             movie_id: movieIdNum 
             })
         });
 
@@ -1277,13 +1279,14 @@ async function removeFromFavorites(movieId) {
 
             // 1. Update local state
             if (currentUser.favorites) {
-                currentUser.favorites = currentUser.favorites.filter(movie => 
-                    String(movie.id) !== String(movieId) && 
-                    String(movie.movieId) !== String(movieId) &&
-                    String(movie.movie_id) !== String(movieId)
-                );
-                saveUserData();
-            }
+            currentUser.favorites = currentUser.favorites.filter(movie => 
+                String(movie.id) !== String(movieId) && 
+                String(movie.movieId) !== String(movieId) &&
+                String(movie.movie_id) !== String(movieId)
+            );
+            saveUserData();
+        }
+        updateUserStats();
 
             // 2. Update ALL movie cards
             refreshAllMovieCards();
