@@ -2632,6 +2632,16 @@ function analyzeQuizAnswers() {
 //Save Quiz Result
 async function saveQuizResults(profile) {
     if (!currentUser) return null;
+    // DEBUG: Check if this is an automatic save
+    console.log("DEBUG: saveQuizResults called");
+    console.log("DEBUG: quizState.answers:", quizState.answers);
+    
+    // If quizState.answers is empty but we're trying to save, something is wrong
+    if (Object.keys(quizState.answers).length === 0) {
+        console.warn("WARNING: Trying to save quiz with empty answers!");
+        console.warn("Current quizState:", quizState);
+        return null;
+    }
 
     try {
         console.log("Saving quiz results:", profile);
@@ -2962,16 +2972,7 @@ async function testEndpoints() {
     }
 
     const endpoints = [
-        {
-            path: '/quiz/save', method: 'POST', needsAuth: true, body: {
-                profileType: 'test_profile',
-                name: 'Test Profile',
-                description: 'Test description',
-                topGenres: ['Action', 'Drama'],
-                tags: ['action', 'drama'],
-                answers: { 1: 1, 2: 2 }
-            }
-        },
+       
         { path: '/user/panel', method: 'GET', needsAuth: true },
         { path: '/user/watchlist', method: 'GET', needsAuth: true },
         { path: '/user/watchlist/clear', method: 'DELETE', needsAuth: true },
