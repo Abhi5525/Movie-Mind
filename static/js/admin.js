@@ -1264,12 +1264,19 @@ showBulkUploadModal() {
                         <h5><i class="fas fa-code"></i> JSON Format Example</h5>
                         <pre><code>[
   {
+        
     "title": "Movie Title",
-    "description": "Movie description...",
-    "release_year": 2024,
-    "genre": "Action, Drama",
+    "genres": "Action, Drama",
     "rating": 8.5,
-    "duration": 120
+    "year": 2024,
+    "runtime": 120,
+    "director": "Director Name",
+    "cast": "Actor1, Actor2",
+    "plot": "Brief plot summary...",
+    "keyword": "keyword1, keyword2",
+    "popularity": "superhero, crime, chaos",
+    "img": "https://example.com/poster.jpg"
+
   }
 ]</code></pre>
                     </div>
@@ -1280,7 +1287,18 @@ showBulkUploadModal() {
                     <div class="manual-entry">
                         <h4><i class="fas fa-keyboard"></i> Manual Movie Entry</h4>
                         <p>Enter movie details in JSON format (one per line)</p>
-                        <textarea id="manualJsonInput" placeholder='{"title": "Movie Title", "description": "...", "release_year": 2024, "genre": "Action", "rating": 8.5}' 
+                        <textarea id="manualJsonInput" placeholder='{"title": "Movie Title",
+    "genres": "Action, Drama",
+    "rating": 8.5,
+    "year": 2024,
+    "runtime": 120,
+    "director": "Director Name",
+    "cast": "Actor1, Actor2",
+    "plot": "Brief plot summary...",
+    "keyword": "keyword1, keyword2",
+    "popularity": "superhero, crime, chaos",
+    "img": "https://example.com/poster.jpg"
+}' 
                                   rows="10" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);"></textarea>
                         <div style="margin-top: 10px; display: flex; gap: 10px;">
                             <button class="btn btn-sm" onclick="admin.addMoreManualFields()">
@@ -1414,8 +1432,7 @@ setupFileUpload(inputId, dropAreaId) {
         }
     });
 }
-
-handleFileSelect(file, inputId) {
+async handleFileSelect(file, inputId) {
     const uploadBtn = document.getElementById('uploadBtn');
     const fileType = inputId.includes('csv') ? 'csv' : 'json';
     
@@ -1438,26 +1455,49 @@ handleFileSelect(file, inputId) {
     
     // Read file
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         try {
             let data;
             if (fileType === 'csv') {
-                data = this.parseCSV(e.target.result);
+                data = await this.parseCSV(e.target.result);
+                console.log("DEBUG: After parseCSV, data:", data);
+                console.log("Is array?", Array.isArray(data));
             } else {
                 data = JSON.parse(e.target.result);
             }
             
+            // Validate data is an array
+            if (!Array.isArray(data)) {
+                console.error("Data is not an array:", data);
+                this.showUploadMessage('Invalid data format: Expected array of movies', 'error');
+                return;
+            }
+            
+            // Filter out empty rows (PapaParse might include empty objects)
+            const filteredData = data.filter(movie => 
+                movie && Object.keys(movie).length > 0 && 
+                (movie.title || movie.Title || movie.name)
+            );
+            
+            console.log(`Filtered ${filteredData.length} valid movies from ${data.length} total`);
+            
+            if (filteredData.length === 0) {
+                this.showUploadMessage('No valid movies found in file', 'error');
+                return;
+            }
+            
             // Store data for upload
-            this.uploadData = data;
+            this.uploadData = filteredData;
             
             // Show preview
-            this.showPreview(data);
+            this.showPreview(filteredData);
             
             // Enable upload button
             uploadBtn.disabled = false;
-            this.showUploadMessage(`Loaded ${data.length} movies successfully`, 'success');
+            this.showUploadMessage(`Loaded ${filteredData.length} movies successfully`, 'success');
             
         } catch (error) {
+            console.error('Error parsing file:', error);
             this.showUploadMessage(`Error parsing file: ${error.message}`, 'error');
         }
     };
@@ -1466,40 +1506,115 @@ handleFileSelect(file, inputId) {
 }
 
 parseCSV(csvText) {
-    const lines = csvText.split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    
-    return lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim());
-        const movie = {};
-        headers.forEach((header, index) => {
-            movie[header] = values[index] || '';
-        });
-        return movie;
-    }).filter(movie => movie.title); // Filter out empty rows
-}
+    return new Promise((resolve) => {
+        // ✅ REMOVE all manual quote cleaning — it's harmful here
+        // const cleanedCSV = csvText.replace(...); ← DELETE THIS
 
+        console.log("DEBUG: First 500 chars of RAW CSV:", csvText.substring(0, 500));
+
+        Papa.parse(csvText, { // ← Pass original csvText directly
+            header: true,
+            skipEmptyLines: true,
+            transformHeader: (header) => header.toLowerCase().trim(),
+            quoteChar: '"',
+            escapeChar: '"', // 👈 standard CSV uses " as escape inside quotes, not \
+            delimiter: ',',
+            complete: (results) => {
+                console.log("DEBUG: Parsed data sample:", results.data?.slice(0, 2));
+
+                if (results.data && Array.isArray(results.data)) {
+                    const cleanedData = results.data
+                        .map(row => {
+                            const cleanRow = {};
+                            for (const [key, value] of Object.entries(row)) {
+                                let cleanValue = value;
+                                if (typeof value === 'string') {
+                                    cleanValue = value.trim();
+                                    // Only remove surrounding quotes if truly wrapped
+                                    if (cleanValue.startsWith('"') && cleanValue.endsWith('"')) {
+                                        cleanValue = cleanValue.slice(1, -1).replace(/""/g, '"');
+                                    }
+                                }
+                                cleanRow[key.toLowerCase().trim()] = cleanValue || null;
+                            }
+                            return cleanRow;
+                        })
+                        .filter(row => row.title); // only keep if title exists
+
+                    console.log(`Cleaned ${cleanedData.length} valid movies`);
+                    resolve(cleanedData);
+                } else {
+                    resolve([]);
+                }
+            },
+            error: (error) => {
+                console.error("Papa Parse error:", error);
+                resolve([]);
+            }
+        });
+    });
+}
 showPreview(data) {
+    console.log("DEBUG: showPreview called with:", data);
+    
     const previewSection = document.querySelector('.preview-section');
     const previewBody = document.getElementById('previewTableBody');
     
-    if (!previewSection || !previewBody) return;
+    if (!previewSection || !previewBody) {
+        console.error("Preview elements not found");
+        return;
+    }
+    
+    // Ensure data is an array
+    if (!Array.isArray(data)) {
+        console.error("showPreview: data is not an array", data);
+        return;
+    }
     
     previewSection.style.display = 'block';
-    
-    // Clear previous preview
     previewBody.innerHTML = '';
     
-    // Show first 3 items as preview
-    const previewItems = data.slice(0, 3);
+    // Show first 3 items as preview (or fewer if less available)
+    const previewItems = data.slice ? data.slice(0, 3) : [];
     
-    previewItems.forEach(movie => {
+    console.log(`Showing ${previewItems.length} preview items`);
+    
+    if (previewItems.length === 0) {
+        previewBody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; color: var(--text-muted);">
+                    No preview available
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    previewItems.forEach((movie, index) => {
+        console.log(`Preview item ${index}:`, movie);
+        
         const row = document.createElement('tr');
+        
+        // Use helper function to get property safely
+        const getProp = (obj, ...keys) => {
+            for (const key of keys) {
+                if (obj && obj[key] !== undefined && obj[key] !== null && obj[key] !== '') {
+                    return obj[key];
+                }
+            }
+            return 'N/A';
+        };
+        
+        const title = getProp(movie, 'title', 'Title', 'name', 'Name');
+        const year = getProp(movie, 'year', 'Year', 'release_year', 'releaseYear');
+        const genre = getProp(movie, 'genre', 'Genre', 'genres', 'Genres');
+        const rating = getProp(movie, 'rating', 'Rating', 'vote_average', 'score');
+        
         row.innerHTML = `
-            <td>${movie.title || 'N/A'}</td>
-            <td>${movie.release_year || movie.year || 'N/A'}</td>
-            <td>${movie.genre || movie.genres || 'N/A'}</td>
-            <td>${movie.rating || movie.vote_average || 'N/A'}</td>
+            <td>${title}</td>
+            <td>${year}</td>
+            <td>${genre}</td>
+            <td>${rating}</td>
         `;
         previewBody.appendChild(row);
     });
@@ -1577,6 +1692,7 @@ processBulkUpload() {
     }
     
     // Disable button and show loading
+    const originalBtnText = uploadBtn.innerHTML;
     uploadBtn.disabled = true;
     uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
     
@@ -1588,40 +1704,78 @@ processBulkUpload() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': this.getCSRFToken()
+            'Authorization': `Bearer ${this.token}`
         },
         body: JSON.stringify(this.uploadData)
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            this.showUploadMessage(data.message, 'success');
+    .then(async (response) => {
+        console.log('DEBUG: Response status:', response.status);
+        
+        let data;
+        try {
+            data = await response.json();
+            console.log('DEBUG: Backend response data:', data);
+        } catch (jsonError) {
+            console.error('DEBUG: Failed to parse JSON:', jsonError);
             
-            // Close modal after success
-            setTimeout(() => {
-                this.closeModal();
-                this.showNotification(`Successfully added ${data.added} movies!`, 'success');
-                
-                // Refresh movies list if on movies page
-                if (this.currentPage === 'movies') {
-                    this.loadMovies();
-                }
-                
-                // Refresh dashboard stats
-                if (this.currentPage === 'dashboard') {
-                    this.loadDashboard();
-                }
-            }, 2000);
-        } else {
-            this.showUploadMessage(`Upload failed: ${data.message}`, 'error');
-            uploadBtn.disabled = false;
-            uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Movies';
+            // Try to get text response instead
+            const text = await response.text();
+            console.log('DEBUG: Raw response text:', text);
+            
+            throw new Error(`Server returned invalid JSON. Status: ${response.status}`);
+        }
+        
+        // Check for success
+        if (!response.ok) {
+            const errorMsg = data?.message || data?.error || `Upload failed (${response.status})`;
+            throw new Error(errorMsg);
+        }
+        
+        return data;
+    })
+    .then(data => {
+        // Success handling
+        const added = data.added || 0;
+        const message = data.message || `Successfully added ${added} movies!`;
+        
+        this.showUploadMessage(message, 'success');
+        
+        // Reset button
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = originalBtnText;
+        
+        // Close modal and refresh
+        setTimeout(() => {
+            this.closeModal();
+            this.showNotification(message, 'success');
+            
+            // Refresh content
+            if (this.currentPage === 'movies') {
+                this.loadMovies();
+            } else if (this.currentPage === 'dashboard') {
+                this.loadDashboardContent();
+            }
+        }, 2000);
+        
+        // Clear upload data
+        this.uploadData = null;
+        
+        // Clear preview
+        const previewSection = document.querySelector('.preview-section');
+        if (previewSection) {
+            previewSection.style.display = 'none';
         }
     })
     .catch(error => {
-        this.showUploadMessage(`Upload error: ${error.message}`, 'error');
+        console.error('DEBUG: Full upload error:', error);
+        
+        // Show error message
+        const errorMsg = error.message || 'Upload failed. Please try again.';
+        this.showUploadMessage(`Upload error: ${errorMsg}`, 'error');
+        
+        // Reset button
         uploadBtn.disabled = false;
-        uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Movies';
+        uploadBtn.innerHTML = originalBtnText;
     });
 }// Helper methods
 downloadCSVTemplate() {

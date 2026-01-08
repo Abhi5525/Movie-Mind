@@ -744,6 +744,7 @@ def quiz_debug():
         'quiz_columns': [c.key for c in QuizResult.__table__.columns] if hasattr(QuizResult, '__table__') else []
     })
 
+
 @admin_bp.route('/movies/bulk', methods=['POST'])
 @jwt_required()
 def bulk_upload_movies():
@@ -764,16 +765,20 @@ def bulk_upload_movies():
                     continue
                 
                 # Create new movie
+                # Update these lines in your loop to handle both versions of header names
                 movie = Movie(
-                    title=movie_data.get('title'),
-                    description=movie_data.get('description', ''),
-                    release_year=movie_data.get('release_year') or movie_data.get('year'),
-                    genre=movie_data.get('genre') or movie_data.get('genres', ''),
-                    rating=float(movie_data.get('rating') or movie_data.get('vote_average') or 0),
-                    duration=int(movie_data.get('duration') or movie_data.get('runtime') or 0),
-                    poster_url=movie_data.get('poster_url') or movie_data.get('poster_path', '')
-                )
-                
+                title=movie_data.get('title').strip(),
+                genres=movie_data.get('genres') or '',
+                rating=float(movie_data.get('rating') or 0),
+                year=int(movie_data.get('year')) if movie_data.get('year') else None,
+                runtime=int(movie_data.get('runtime')) if movie_data.get('runtime') else None,
+                director=movie_data.get('director') or '',
+                cast=movie_data.get('cast') or '',
+                plot=movie_data.get('plot') or '',
+                keywords=movie_data.get('keywords') or '',
+                popularity=float(movie_data.get('popularity') or 0),
+                img=movie_data.get('img') or ''  # or handle poster_filename if uploading files
+            )
                 db.session.add(movie)
                 movies_added += 1
                 
