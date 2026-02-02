@@ -7,6 +7,8 @@ class AdminDashboard {
         this.baseUrl = '/admin'; // Base URL for all admin endpoints
         this.movies = [];
         this.users = [];
+        this.uploadData = null;
+        this.filterTimeout = null;
         
         console.log('🔧 AdminDashboard initialized');
         console.log('🔧 Token:', this.token ? this.token.substring(0, 30) + '...' : 'None');
@@ -314,7 +316,7 @@ class AdminDashboard {
                     <div class="filter-actions">
                         <div class="search-box">
                             <input type="text" class="search-input" placeholder="Search movies..." 
-                                   id="movieSearch" oninput="admin.filterMovies(this.value)">
+                                   id="movieSearch">
                             <i class="fas fa-search search-icon"></i>
                         </div>
                         <button class="btn btn-primary" onclick="admin.showAddMovieModal()">
@@ -358,7 +360,7 @@ class AdminDashboard {
                     <div class="filter-actions">
                         <div class="search-box">
                             <input type="text" class="search-input" placeholder="Search users..." 
-                                   id="userSearch" oninput="admin.filterUsers(this.value)">
+                                   id="userSearch" oninput="admin.debounceFilterUsers(this.value)">
                             <i class="fas fa-search search-icon"></i>
                         </div>
                     </div>
@@ -415,18 +417,28 @@ class AdminDashboard {
         `;
     }
     initPageScripts() {
-    switch(this.currentPage) {
-        case 'movies':
-            this.loadMoviesData();
-            break;
-        case 'users':
-            this.loadUsersData();
-            break;
-        case 'quiz-analytics':
-            this.loadQuizAnalyticsData(); // ADD THIS LINE
-            break;
+        switch(this.currentPage) {
+            case 'movies':
+                this.loadMoviesData();
+                // Add search listener
+                const movieSearch = document.getElementById('movieSearch');
+                if (movieSearch) {
+                    movieSearch.addEventListener('input', (e) => this.debounceFilterMovies(e.target.value));
+                }
+                break;
+            case 'users':
+                this.loadUsersData();
+                // Add search listener
+                const userSearch = document.getElementById('userSearch');
+                if (userSearch) {
+                    userSearch.addEventListener('input', (e) => this.debounceFilterUsers(e.target.value));
+                }
+                break;
+            case 'quiz-analytics':
+                this.loadQuizAnalyticsData();
+                break;
+        }
     }
-}
     async loadMoviesData(page = 1, search = '') {
         try {
             const url = search ? 
@@ -459,6 +471,21 @@ class AdminDashboard {
             console.error('Error loading users:', error);
             this.updateUsersTable([]);
         }
+    }
+    
+    // Debounced filter methods
+    debounceFilterMovies(searchTerm) {
+        clearTimeout(this.filterTimeout);
+        this.filterTimeout = setTimeout(() => {
+            this.loadMoviesData(1, searchTerm);
+        }, 300);
+    }
+    
+    debounceFilterUsers(searchTerm) {
+        clearTimeout(this.filterTimeout);
+        this.filterTimeout = setTimeout(() => {
+            this.loadUsersData(1, searchTerm);
+        }, 300);
     }
     
     updateMoviesTable(movies) {
@@ -983,41 +1010,6 @@ class AdminDashboard {
     }
     
     // ========== SEARCH FUNCTIONALITY ==========
-   // Update these methods in your AdminDashboard class:
-
-async filterMovies(searchTerm) {
-    try {
-        const url = searchTerm ? 
-            `${this.baseUrl}/movies?search=${encodeURIComponent(searchTerm)}` :
-            `${this.baseUrl}/movies`;
-            
-        const data = await this.apiRequest(url);
-        this.movies = data.movies || [];
-        
-        this.updateMoviesTable(this.movies);
-        
-    } catch (error) {
-        console.error('Error filtering movies:', error);
-        this.updateMoviesTable([]);
-    }
-}
-
-async filterUsers(searchTerm) {
-    try {
-        const url = searchTerm ? 
-            `${this.baseUrl}/users?search=${encodeURIComponent(searchTerm)}` :
-            `${this.baseUrl}/users`;
-            
-        const data = await this.apiRequest(url);
-        this.users = data.users || [];
-        
-        this.updateUsersTable(this.users);
-        
-    } catch (error) {
-        console.error('Error filtering users:', error);
-        this.updateUsersTable([]);
-    }
-} 
     async showSearchModal(query) {
         try {
             const data = await this.apiRequest(`${this.baseUrl}/search?q=${encodeURIComponent(query)}`);
@@ -1205,115 +1197,32 @@ showBulkUploadModal() {
     const modalHtml = `
         <div class="modal">
             <div class="modal-header">
-                <h3 class="modal-title"><i class="fas fa-upload"></i> Bulk Movie Upload</h3>
+                <h3 class="modal-title"><i class="fas fa-upload"></i> Bulk Movie Upload (CSV)</h3>
                 <button class="modal-close" onclick="admin.closeModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <!-- Upload Method Selection -->
-                <div class="upload-method-selector">
-                    <div class="method-option active" data-method="csv">
-                        <i class="fas fa-file-csv"></i>
-                        <span>CSV Upload</span>
-                    </div>
-                    <div class="method-option" data-method="json">
-                        <i class="fas fa-file-code"></i>
-                        <span>JSON Upload</span>
-                    </div>
-                    <div class="method-option" data-method="manual">
-                        <i class="fas fa-keyboard"></i>
-                        <span>Manual Entry</span>
-                    </div>
+                <div class="upload-area" id="csvUploadArea">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h4>Upload CSV File</h4>
+                    <p>Drag & drop or click to upload CSV file</p>
+                    <small>Supported format: .csv with movie data (max 5MB)</small>
+                    <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+                    <button class="btn btn-secondary" onclick="document.getElementById('csvFileInput').click()">
+                        <i class="fas fa-folder-open"></i> Choose File
+                    </button>
                 </div>
-
-                <!-- CSV Upload Section -->
-                <div class="upload-section active" id="csvSection">
-                    <div class="upload-area" id="csvUploadArea">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <h4>Upload CSV File</h4>
-                        <p>Drag & drop or click to upload CSV file</p>
-                        <small>Supported format: .csv with movie data</small>
-                        <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
-                        <button class="btn btn-secondary" onclick="document.getElementById('csvFileInput').click()">
-                            <i class="fas fa-folder-open"></i> Choose File
-                        </button>
-                    </div>
-                    
-                    <div class="csv-template" style="margin-top: 20px;">
-                        <h5><i class="fas fa-download"></i> Download Template</h5>
-                        <p>Use our template to ensure correct format</p>
-                        <button class="btn btn-sm" onclick="admin.downloadCSVTemplate()">
-                            <i class="fas fa-download"></i> Download CSV Template
-                        </button>
-                    </div>
+                
+                <div class="csv-template" style="margin-top: 20px; padding: 15px; background: var(--bg-input); border-radius: 8px;">
+                    <h5><i class="fas fa-download"></i> Download Template</h5>
+                    <p style="margin: 10px 0;">Use our template to ensure correct format</p>
+                    <button class="btn btn-sm" onclick="admin.downloadCSVTemplate()">
+                        <i class="fas fa-download"></i> Download CSV Template
+                    </button>
                 </div>
-
-                <!-- JSON Upload Section -->
-                <div class="upload-section" id="jsonSection">
-                    <div class="upload-area" id="jsonUploadArea">
-                        <i class="fas fa-file-import"></i>
-                        <h4>Upload JSON File</h4>
-                        <p>Drag & drop or click to upload JSON file</p>
-                        <small>Supported format: .json with movie data</small>
-                        <input type="file" id="jsonFileInput" accept=".json" style="display: none;">
-                        <button class="btn btn-secondary" onclick="document.getElementById('jsonFileInput').click()">
-                            <i class="fas fa-folder-open"></i> Choose File
-                        </button>
-                    </div>
-                    
-                    <div class="json-example" style="margin-top: 20px;">
-                        <h5><i class="fas fa-code"></i> JSON Format Example</h5>
-                        <pre><code>[
-  {
-        
-    "title": "Movie Title",
-    "genres": "Action, Drama",
-    "rating": 8.5,
-    "year": 2024,
-    "runtime": 120,
-    "director": "Director Name",
-    "cast": "Actor1, Actor2",
-    "plot": "Brief plot summary...",
-    "keyword": "keyword1, keyword2",
-    "popularity": "superhero, crime, chaos",
-    "img": "https://example.com/poster.jpg"
-
-  }
-]</code></pre>
-                    </div>
-                </div>
-
-                <!-- Manual Entry Section -->
-                <div class="upload-section" id="manualSection">
-                    <div class="manual-entry">
-                        <h4><i class="fas fa-keyboard"></i> Manual Movie Entry</h4>
-                        <p>Enter movie details in JSON format (one per line)</p>
-                        <textarea id="manualJsonInput" placeholder='{"title": "Movie Title",
-    "genres": "Action, Drama",
-    "rating": 8.5,
-    "year": 2024,
-    "runtime": 120,
-    "director": "Director Name",
-    "cast": "Actor1, Actor2",
-    "plot": "Brief plot summary...",
-    "keyword": "keyword1, keyword2",
-    "popularity": "superhero, crime, chaos",
-    "img": "https://example.com/poster.jpg"
-}' 
-                                  rows="10" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);"></textarea>
-                        <div style="margin-top: 10px; display: flex; gap: 10px;">
-                            <button class="btn btn-sm" onclick="admin.addMoreManualFields()">
-                                <i class="fas fa-plus"></i> Add Another
-                            </button>
-                            <button class="btn btn-sm" onclick="admin.clearManualFields()">
-                                <i class="fas fa-trash"></i> Clear All
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
+                
                 <!-- Preview Section -->
                 <div class="preview-section" style="display: none; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                    <h4><i class="fas fa-eye"></i> Preview (3 movies)</h4>
+                    <h4><i class="fas fa-eye"></i> Preview</h4>
                     <div class="preview-table-container">
                         <table class="table">
                             <thead>
@@ -1325,13 +1234,12 @@ showBulkUploadModal() {
                                 </tr>
                             </thead>
                             <tbody id="previewTableBody">
-                                <!-- Preview rows will be added here -->
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Error/Success Messages -->
+                <!-- Messages -->
                 <div class="upload-messages" style="margin-top: 20px;">
                     <div class="alert" id="uploadMessage" style="display: none;"></div>
                 </div>
@@ -1348,56 +1256,16 @@ showBulkUploadModal() {
     `;
     
     this.showModal(modalHtml);
-    
-    // Initialize upload functionality
-    this.initializeBulkUpload();
+    this.initializeCSVUpload();
 }
 
-// Bulk Upload Methods
-initializeBulkUpload() {
-    // Method selector
-    const methodOptions = document.querySelectorAll('.method-option');
-    methodOptions.forEach(option => {
-        option.addEventListener('click', () => {
-            methodOptions.forEach(opt => opt.classList.remove('active'));
-            option.classList.add('active');
-            
-            // Show selected section
-            const method = option.dataset.method;
-            document.querySelectorAll('.upload-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            document.getElementById(`${method}Section`).classList.add('active');
-        });
-    });
-
-    // File upload handlers
-    this.setupFileUpload('csvFileInput', 'csvUploadArea');
-    this.setupFileUpload('jsonFileInput', 'jsonUploadArea');
+// Bulk Upload Methods (CSV only)
+initializeCSVUpload() {
+    const fileInput = document.getElementById('csvFileInput');
+    const dropArea = document.getElementById('csvUploadArea');
     
-    // Manual input handler
-    const manualInput = document.getElementById('manualJsonInput');
-    if (manualInput) {
-        manualInput.addEventListener('input', () => {
-            this.validateUploadData();
-        });
-    }
-}
-
-setupFileUpload(inputId, dropAreaId) {
-    const fileInput = document.getElementById(inputId);
-    const dropArea = document.getElementById(dropAreaId);
+    dropArea.addEventListener('click', () => fileInput.click());
     
-    if (!fileInput || !dropArea) return;
-    
-    // Click to upload
-    dropArea.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
-            fileInput.click();
-        }
-    });
-    
-    // Drag and drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropArea.addEventListener(eventName, (e) => {
             e.preventDefault();
@@ -1421,83 +1289,47 @@ setupFileUpload(inputId, dropAreaId) {
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             fileInput.files = files;
-            this.handleFileSelect(files[0], inputId);
+            this.handleCSVFileSelect(files[0]);
         }
     });
     
-    // File input change
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
-            this.handleFileSelect(e.target.files[0], inputId);
+            this.handleCSVFileSelect(e.target.files[0]);
         }
     });
 }
-async handleFileSelect(file, inputId) {
+
+async handleCSVFileSelect(file) {
     const uploadBtn = document.getElementById('uploadBtn');
-    const fileType = inputId.includes('csv') ? 'csv' : 'json';
     
-    // Validate file type
-    if (fileType === 'csv' && !file.name.endsWith('.csv')) {
+    if (!file.name.endsWith('.csv')) {
         this.showUploadMessage('Please upload a CSV file', 'error');
         return;
     }
     
-    if (fileType === 'json' && !file.name.endsWith('.json')) {
-        this.showUploadMessage('Please upload a JSON file', 'error');
-        return;
-    }
-    
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
         this.showUploadMessage('File size should be less than 5MB', 'error');
         return;
     }
     
-    // Read file
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
-            let data;
-            if (fileType === 'csv') {
-                data = await this.parseCSV(e.target.result);
-                console.log("DEBUG: After parseCSV, data:", data);
-                console.log("Is array?", Array.isArray(data));
-            } else {
-                data = JSON.parse(e.target.result);
-            }
+            const data = await this.parseCSV(e.target.result);
             
-            // Validate data is an array
-            if (!Array.isArray(data)) {
-                console.error("Data is not an array:", data);
-                this.showUploadMessage('Invalid data format: Expected array of movies', 'error');
-                return;
-            }
-            
-            // Filter out empty rows (PapaParse might include empty objects)
-            const filteredData = data.filter(movie => 
-                movie && Object.keys(movie).length > 0 && 
-                (movie.title || movie.Title || movie.name)
-            );
-            
-            console.log(`Filtered ${filteredData.length} valid movies from ${data.length} total`);
-            
-            if (filteredData.length === 0) {
+            if (!Array.isArray(data) || data.length === 0) {
                 this.showUploadMessage('No valid movies found in file', 'error');
                 return;
             }
             
-            // Store data for upload
-            this.uploadData = filteredData;
-            
-            // Show preview
-            this.showPreview(filteredData);
-            
-            // Enable upload button
+            this.uploadData = data;
+            this.showPreview(data);
             uploadBtn.disabled = false;
-            this.showUploadMessage(`Loaded ${filteredData.length} movies successfully`, 'success');
+            this.showUploadMessage(`Loaded ${data.length} movies successfully`, 'success');
             
         } catch (error) {
-            console.error('Error parsing file:', error);
+            console.error('Error parsing CSV:', error);
             this.showUploadMessage(`Error parsing file: ${error.message}`, 'error');
         }
     };
@@ -1626,49 +1458,6 @@ showPreview(data) {
     }
 }
 
-validateUploadData() {
-    const uploadBtn = document.getElementById('uploadBtn');
-    const manualInput = document.getElementById('manualJsonInput');
-    
-    if (!manualInput || manualInput.value.trim() === '') {
-        uploadBtn.disabled = true;
-        return;
-    }
-    
-    try {
-        // Parse manual JSON input
-        const inputText = manualInput.value.trim();
-        let data;
-        
-        if (inputText.startsWith('[')) {
-            // Array of movies
-            data = JSON.parse(inputText);
-        } else {
-            // Single movie or one per line
-            const lines = inputText.split('\n').filter(line => line.trim());
-            data = lines.map(line => {
-                try {
-                    return JSON.parse(line.trim());
-                } catch {
-                    return null;
-                }
-            }).filter(movie => movie);
-        }
-        
-        if (data.length > 0) {
-            this.uploadData = data;
-            this.showPreview(data);
-            uploadBtn.disabled = false;
-            this.showUploadMessage(`Validated ${data.length} movies`, 'success');
-        } else {
-            this.showUploadMessage('No valid movies found', 'error');
-            uploadBtn.disabled = true;
-        }
-    } catch (error) {
-        this.showUploadMessage('Invalid JSON format', 'error');
-        uploadBtn.disabled = true;
-    }
-}
 
 showUploadMessage(message, type = 'info') {
     const messageDiv = document.getElementById('uploadMessage');
@@ -1751,9 +1540,9 @@ processBulkUpload() {
             
             // Refresh content
             if (this.currentPage === 'movies') {
-                this.loadMovies();
+                this.loadMoviesData();
             } else if (this.currentPage === 'dashboard') {
-                this.loadDashboardContent();
+                this.loadPage('dashboard');
             }
         }, 2000);
         
@@ -1779,10 +1568,10 @@ processBulkUpload() {
     });
 }// Helper methods
 downloadCSVTemplate() {
-    const csvContent = 'title,description,release_year,genre,rating,duration,poster_url\n' +
-                      'Movie Title 1,Description of movie 1,2024,Action,Drama,8.5,120,https://example.com/poster1.jpg\n' +
-                      'Movie Title 2,Description of movie 2,2023,Comedy,Romance,7.8,95,https://example.com/poster2.jpg\n' +
-                      'Movie Title 3,Description of movie 3,2022,Sci-Fi,Thriller,8.2,130,https://example.com/poster3.jpg';
+    const csvContent = 'title,year,genres,rating,runtime,director,cast,plot,keywords,popularity,img\n' +
+                      'The Shawshank Redemption,1994,Drama,9.3,142,Frank Darabont,Tim Robbins Morgan Freeman,Two imprisoned men bond over years,prison hope redemption,85.5,https://example.com/poster1.jpg\n' +
+                      'The Godfather,1972,Crime Drama,9.2,175,Francis Ford Coppola,Marlon Brando Al Pacino,The aging patriarch of an organized crime dynasty,mafia family crime,90.2,https://example.com/poster2.jpg\n' +
+                      'The Dark Knight,2008,Action Crime Drama,9.0,152,Christopher Nolan,Christian Bale Heath Ledger,Batman must accept responsibility for fighting crime,batman joker superhero,95.0,https://example.com/poster3.jpg';
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -1793,34 +1582,10 @@ downloadCSVTemplate() {
     window.URL.revokeObjectURL(url);
 }
 
-addMoreManualFields() {
-    const manualInput = document.getElementById('manualJsonInput');
-    if (manualInput) {
-        manualInput.value += '\n{"title": "", "description": "", "release_year": "", "genre": "", "rating": ""}';
-        manualInput.focus();
-    }
-}
-
-clearManualFields() {
-    const manualInput = document.getElementById('manualJsonInput');
-    if (manualInput && confirm('Clear all manual entries?')) {
-        manualInput.value = '';
-        this.uploadData = null;
-        const previewSection = document.querySelector('.preview-section');
-        if (previewSection) {
-            previewSection.style.display = 'none';
-        }
-        const uploadBtn = document.getElementById('uploadBtn');
-        if (uploadBtn) {
-            uploadBtn.disabled = true;
-        }
-    }
-}
     logout() {
-    localStorage.removeItem('token');  // ✅ Remove 'token'
-    window.location.href = '/admin-login';
-    // No return statement needed
-}
+        localStorage.removeItem('admin_token');
+        window.location.href = '/admin-login';
+    }
 loadQuizAnalyticsContent() {
     return `
         <div class="quiz-analytics-page">
