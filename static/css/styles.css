@@ -562,6 +562,87 @@ footer {
   transform: scale(1.1);
 }
 
+/* ===== TRAILER PREVIEW STYLES ===== */
+.trailer-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.95);
+  border-radius: 18px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.movie-card:hover .trailer-preview {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.trailer-player {
+  width: 95%;
+  height: 85%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trailer-player iframe {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  border: none;
+}
+
+.no-trailer {
+  color: #b0b7c3;
+  text-align: center;
+  font-size: 14px;
+  padding: 20px;
+}
+
+/* Trailer Action Buttons */
+.trailer-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 0;
+  width: 95%;
+  z-index: 20;
+}
+
+/* Login Prompt Button */
+.action-btn.login-prompt {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  padding: 12px 24px;
+  border-radius: 25px;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-btn.login-prompt:hover {
+  transform: scale(1.05);
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
 /* Movie Info */
 .movie-info {
   padding: 18px;
@@ -608,6 +689,8 @@ footer {
 .action-btn.watchlist.active { color: #00e5ff; }
 .action-btn.favorite.active { color: #ff6b6b; }
 .action-btn.rating.active { color: #ffd700; }
+.action-btn.watched { color: #b0b7c3; }
+.action-btn.watched.active { color: #2ecc71; }
 
 /* Quick Rating */
 .quick-rating {

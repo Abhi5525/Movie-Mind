@@ -250,7 +250,7 @@ class AdminDashboard {
                                 <i class="fas fa-upload"></i>
                             </div>
                             <h3>Bulk Upload</h3>
-                            <p>Upload multiple movies via CSV or JSON</p>
+                            <p>Upload multiple movies via CSV file</p>
                         </div>
                     </div>
                     

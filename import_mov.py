@@ -14,13 +14,14 @@ def import_movies():
             genres=row.get('genres'),
             rating=float(row.get('rating', 0.0)),
             year=int(row.get('year')),
-            runtime=int(row.get('runtime')) if pd.notnull(row.get('runtime')) else None, # Added this
+            runtime=int(row.get('runtime')) if pd.notnull(row.get('runtime')) else None,
             director=row.get('director'),
             cast=row.get('cast'),
             plot=row.get('plot'),
             keywords=row.get('keywords'),
             popularity=float(row.get('popularity', 0.0)),
-            img=row.get('img')
+            img=row.get('img'),
+            trailer_url=row.get('trailer_url')
         )
         db.session.merge(movie)
     

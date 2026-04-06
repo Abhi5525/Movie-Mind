@@ -435,12 +435,9 @@ async function showUserPanel() {
     }
 
     try {
-        console.log("Fetching user panel...");
         const res = await fetch(`${base_url}/user/panel`, {
             headers: getAuthHeaders()
         });
-
-        console.log("Response status:", res.status);
 
         if (res.status === 401) {
             logout();
@@ -449,7 +446,6 @@ async function showUserPanel() {
         }
 
         const data = await res.json();
-        console.log("User panel data:", data);
 
         if (!data.success) {
             throw new Error(data.error || 'Failed to load user panel');
@@ -473,7 +469,6 @@ async function showUserPanel() {
         const modal = document.getElementById('userPanelModal');
         if (modal) {
             modal.style.display = 'flex';
-            console.log('User panel modal displayed');
         }
 
         // Switch to watchlist tab by default
@@ -486,7 +481,6 @@ async function showUserPanel() {
 }
 
 function updatePanelUI(userData) {
-    console.log("Updating panel UI with:", userData);
     
     // Update user info
     document.getElementById('panelUserName').textContent = userData.name || 'User';
@@ -520,7 +514,6 @@ function updatePanelUI(userData) {
 }
 
 function switchPanelTab(tabId) {
-    console.log('Switching to tab:', tabId);
 
     // Remove active class from all tabs
     document.querySelectorAll('.panel-tab').forEach(tab => {
@@ -595,7 +588,7 @@ if (!currentUser.ratings || typeof currentUser.ratings !== 'object') currentUser
     if (favoritesCountEl) favoritesCountEl.textContent = favoritesCount;
     if (moviesRatedEl) moviesRatedEl.textContent = moviesRated;
 
-    console.log("Stats updated:", { watchlistCount, moviesWatched, favoritesCount, moviesRated });
+
 }
 
 // ==== HELPER FUNCTIONS FOR PANEL AND MOVIE
@@ -761,7 +754,6 @@ async function loadWatchlist() {
         if (!res.ok) throw new Error('Failed to load watchlist');
 
         const data = await res.json();
-        console.log("Watchlist loaded:", data);
 
         const watchlistList = document.getElementById('watchlistList');
         const emptyState = document.getElementById('emptyWatchlist');
@@ -837,10 +829,7 @@ async function toggleWatchlist(event, movieId, title, img, rating, year) {
     try {
         const res = await fetch(`${base_url}/user/watchlist/toggle`, {
             method: "POST",
-            headers: { 
-                "Content-Type": "application/json", 
-                "Authorization": `Bearer ${currentUser.token}` 
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ 
                 movie_id: movieId, 
                 title, 
@@ -913,7 +902,7 @@ async function clearWatchlist() {
 }
 
 async function removeFromWatchlist(movieId) {
-    console.log('removeFromWatchlist called with movieId:', movieId);
+
     
     if (!movieId || movieId === 'undefined') {
         showNotification('Invalid movie ID', 'error');
@@ -930,7 +919,7 @@ async function removeFromWatchlist(movieId) {
             headers: getAuthHeaders()
         });
 
-        console.log('Remove response status:', res.status);
+
         
         if (!res.ok) {
             const errorData = await res.json();
@@ -949,6 +938,7 @@ async function removeFromWatchlist(movieId) {
             );
             saveUserData();
         }
+        updateUserStats();
 
         // 2. Update ALL movie cards
         refreshAllMovieCards();
@@ -1032,7 +1022,6 @@ async function loadWatchHistory() {
         if (!res.ok) throw new Error('Failed to load watch history');
 
         const recentHistory = await res.json();
-        console.log("Watch history loaded:", recentHistory);
 
         const container = document.getElementById('watchHistoryList');
         const emptyState = document.getElementById('emptyWatchHistory');
@@ -1132,6 +1121,7 @@ async function removeFromWatchHistory(movieId) {
             );
             saveUserData();
         }
+        updateUserStats();
 setTimeout(refreshAllMovieCards, 100);
         // 2. Update UI on movie cards (mark as not watched)
         updateMovieCardUI(movieIdNum, { isWatched: false });
@@ -1170,10 +1160,7 @@ async function toggleFavorite(eventOrMovieData, extraData) {
     try {
         const res = await fetch(`${base_url}/favorites/add`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${currentUser.token}`
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ 
                 movie_id: movie_id, 
                 title: title, 
@@ -1224,7 +1211,6 @@ async function loadFavorites() {
         if (!res.ok) throw new Error('Failed to load favorites');
 
         const data = await res.json();
-        console.log("Favorites loaded:", data);
 
         const container = document.getElementById('favoritesList');
         const emptyState = document.getElementById('emptyFavorites');
@@ -1267,7 +1253,7 @@ async function loadFavorites() {
 
 
 async function removeFromFavorites(movieId) {
-    console.log('removeFromFavorites called with movieId:', movieId);
+
     
     if (!movieId || movieId === 'undefined') {
         showNotification('Invalid movie ID', 'error');
@@ -1288,7 +1274,7 @@ async function removeFromFavorites(movieId) {
         });
 
         const data = await res.json();
-        console.log('Remove favorites response:', data);
+
         
         if (res.ok) {
             showNotification('Removed from favorites', 'success');
@@ -1419,7 +1405,6 @@ async function loadRatings() {
         if (!res.ok) throw new Error('Failed to load ratings');
 
         const data = await res.json();
-        console.log("Ratings loaded:", data);
 
         const ratingsList = document.getElementById('ratingsList');
         const emptyState = document.getElementById('emptyRatings');
@@ -1672,15 +1657,6 @@ function renderMovies(list) {
         list.forEach(movie => {
             if (!movie || !movie.id || !movie.title) return;
 
-                  console.log('Movie image data:', {
-            title: movie.title,
-            img: movie.img,
-            poster_path: movie.poster_path,
-            image_url: movie.image_url,
-            runtime: movie.runtime,
-
-            hasImage: movie.img || movie.poster_path || movie.image_url
-        });  
             // In renderMovies() function:
 const isWatched = isMovieInArray(currentUser?.watch_history, movie.id);
 const isInWatchlist = isMovieInArray(currentUser?.watchlist, movie.id);
@@ -1694,10 +1670,82 @@ const isFavorite = isMovieInArray(currentUser?.favorites, movie.id);
             movieCard.className = 'movie-card';
             movieCard.dataset.movieId = movie.id;
    
+            // Build trailer HTML with action buttons inside for accessibility
+            let trailerHTML = '';
+            if (movie.trailer_url) {
+                // Format YouTube URL with autoplay and mute parameters
+                const youtubeUrl = movie.trailer_url.includes('?') 
+                    ? `${movie.trailer_url}&autoplay=1&mute=1`
+                    : `${movie.trailer_url}?autoplay=1&mute=1`;
+                
+                trailerHTML = `
+                    <div class="trailer-preview" data-trailer-url="${movie.trailer_url}">
+                        <div class="trailer-player">
+                            <iframe 
+                                src="${youtubeUrl}" 
+                                frameborder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowfullscreen
+                                style="border: none; border-radius: 10px;">
+                            </iframe>
+                        </div>
+                        <div class="trailer-actions">
+                            ${currentUser ? `
+                                <button class="action-btn watchlist ${isInWatchlist ? 'active' : ''}"
+                                    onclick="toggleWatchlist(event, ${movie.id}, '${title}', '${imgSrc}', ${movie.rating || 0}, ${movie.year || 0}); event.stopPropagation()">
+                                    <i class="${isInWatchlist ? 'fas' : 'far'} fa-bookmark"></i>
+                                </button>
+                                <button class="action-btn favorite ${isFavorite ? 'active' : ''}"
+                                    onclick="toggleFavorite({
+                                        movie_id: ${movie.id},
+                                        title: '${title}',
+                                        img: '${imgSrc}',
+                                        rating: ${movie.rating || 0},
+                                        year: ${movie.year || 0},
+                                        runtime: '${movie.runtime_formatted || ''}'
+                                    }); event.stopPropagation()">
+                                    <i class="${isFavorite ? 'fas' : 'far'} fa-heart"></i>
+                                </button>
+                                <button class="action-btn watched ${isWatched ? 'active' : ''}"
+                                    onclick="addToWatchHistory({
+                                        id: ${movie.id},
+                                        title: '${title}',
+                                        img: '${imgSrc}',
+                                        rating: ${movie.rating || 0},
+                                        year: ${movie.year || 0}
+                                    }); event.stopPropagation()">
+                                    <i class="${isWatched ? 'fas' : 'far'} fa-check-circle"></i>
+                                </button>
+                                <div class="quick-rating">
+                                    ${[1, 2, 3, 4, 5].map(star => `
+                                        <span class="quick-star ${star <= userRating ? 'active' : ''}"
+                                            onclick="rateMovie(${movie.id}, ${star}); event.stopPropagation()">★</span>
+                                    `).join('')}
+                                </div>
+                            ` : `
+                                <button class="action-btn login-prompt" onclick="showLoginModal(); event.stopPropagation()">
+                                    <i class="fas fa-sign-in-alt"></i>
+                                    Login to Rate
+                                </button>
+                            `}
+                        </div>
+                    </div>`;
+            } else {
+                trailerHTML = `
+                    <div class="trailer-preview" data-trailer-url="">
+                        <div class="trailer-player">
+                            <div class="no-trailer">No trailer available</div>
+                        </div>
+                    </div>`;
+            }
+            
             movieCard.innerHTML = `
                 ${isWatched ? '<div class="watchlist-status">Watched</div>' : ''}
                 <span class="rating">⭐ ${movie.rating || 'N/A'}</span>
                 <img src="${imgSrc}" alt="${movie.title}" loading="lazy" onerror="this.src='${PLACEHOLDER}'">
+                
+                ${trailerHTML}
+                
                 <div class="movie-info">
                     <h3>${movie.title}</h3>
                     <p>${movie.genres || "Unknown Genre"}</p>
@@ -1718,29 +1766,6 @@ const isFavorite = isMovieInArray(currentUser?.favorites, movie.id);
                                 <span>${movie.runtime_formatted || formatRuntime(movie.runtime)}</span>
                             ` : ''}
                         </p>
-                            <div class="movie-actions-grid">
-                        <button class="action-btn watchlist ${isInWatchlist ? 'active' : ''}"
-                            onclick="toggleWatchlist(event, ${movie.id}, '${title}', '${imgSrc}', ${movie.rating || 0}, ${movie.year || 0})">
-                            <i class="${isInWatchlist ? 'fas' : 'far'} fa-bookmark"></i>
-                        </button>
-                        <button class="action-btn favorite ${isFavorite ? 'active' : ''}"
-                            onclick="toggleFavorite({
-                                movie_id: ${movie.id},
-                                title: '${title}',
-                                img: '${imgSrc}',
-                                rating: ${movie.rating || 0},
-                                year: ${movie.year || 0},
-                                runtime: '${movie.runtime_formatted || ''}'
-                            }); event.stopPropagation()">
-                            <i class="${isFavorite ? 'fas' : 'far'} fa-heart"></i>
-                        </button>
-                            <div class="quick-rating">
-                            ${[1, 2, 3, 4, 5].map(star => `
-                                <span class="quick-star ${star <= userRating ? 'active' : ''}"
-                                    onclick="rateMovie(${movie.id}, ${star}); event.stopPropagation()">★</span>
-                            `).join('')}
-                        </div>
-                    </div>
                 </div>
             `;
             tempDiv.appendChild(movieCard);
@@ -1749,7 +1774,26 @@ const isFavorite = isMovieInArray(currentUser?.favorites, movie.id);
         fragment.appendChild(tempDiv);
         movieContainer.innerHTML = '';
         movieContainer.appendChild(fragment);
+        
+        // Initialize trailer previews after rendering
+        initializeTrailerPreviews();
+        
         isRendering = false;
+    });
+}
+
+// Initialize trailer previews for all movie cards
+function initializeTrailerPreviews() {
+    const movieCards = document.querySelectorAll('.movie-card');
+    
+    movieCards.forEach((card, index) => {
+        // Prevent event bubbling for buttons inside trailer preview
+        const buttons = card.querySelector('.movie-actions-grid');
+        if (buttons) {
+            buttons.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
     });
 }
 
@@ -2961,88 +3005,13 @@ function initializeQuiz() {
 }
 
 //Functions to test EndPoints
-async function testEndpoints() {
-    console.log("=== Testing Endpoints ===");
-
-    // Check if user is logged in
-    if (!currentUser || !currentUser.token) {
-        console.log("No user logged in. Testing without auth...");
-    } else {
-        console.log("Testing with user token:", currentUser.token.substring(0, 20) + "...");
-    }
-
-    const endpoints = [
-       
-        { path: '/user/panel', method: 'GET', needsAuth: true },
-        { path: '/user/watchlist', method: 'GET', needsAuth: true },
-        { path: '/user/watchlist/clear', method: 'DELETE', needsAuth: true },
-        { path: '/user/watch-history/clear', method: 'DELETE', needsAuth: true },
-        { path: '/user/ratings/clear', method: 'DELETE', needsAuth: true },
-        { path: '/favorites/', method: 'GET', needsAuth: true }
-    ];
-
-    for (const endpoint of endpoints) {
-        try {
-            const url = `${base_url}${endpoint.path}`;
-            console.log(`\nTesting ${endpoint.method}: ${url}`);
-
-            const headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            };
-
-            // Add auth header if needed and we have a token
-            if (endpoint.needsAuth && currentUser && currentUser.token) {
-                headers['Authorization'] = `Bearer ${currentUser.token}`;
-                console.log(`  Using token: ${currentUser.token.substring(0, 20)}...`);
-            } else if (endpoint.needsAuth) {
-                console.log(`  Skipping - needs auth but no token`);
-                continue;
-            }
-
-            const options = {
-                method: endpoint.method,
-                headers: headers,
-                credentials: 'include'  // Important for cookies if using them
-            };
-
-            // Add body for POST requests
-            if (endpoint.method === 'POST' && endpoint.body) {
-                options.body = JSON.stringify(endpoint.body);
-            }
-
-            const res = await fetch(url, options);
-
-            console.log(`  Status: ${res.status} - ${res.statusText}`);
-
-            if (!res.ok) {
-                try {
-                    const errorText = await res.text();
-                    console.log(`  Error: ${errorText.substring(0, 200)}...`);
-                } catch (e) {
-                    console.log('  Could not read error response');
-                }
-            } else {
-                try {
-                    const data = await res.json();
-                    console.log(`  Success:`, data);
-                } catch (e) {
-                    const text = await res.text();
-                    console.log(`  Response (not JSON): ${text.substring(0, 200)}...`);
-                }
-            }
-
-        } catch (err) {
-            console.error(`  Error: ${err.message}`);
-        }
-    }
-}
+// Production version - no testing endpoints
 
 // Data sync between local Storage and database
 async function forceSyncUserData() {
     if (!currentUser) return;
     
-    console.log('Force syncing user data...');
+
     
     try {
         // Load fresh data from all endpoints
@@ -3154,10 +3123,11 @@ initializeSearch();
     // 6. Movie card click for watch history (event delegation)
     document.addEventListener('click', (e) => {
         const card = e.target.closest('.movie-card');
-        if (card && currentUser) {
+        // Don't trigger on trailer overlay, buttons, or icons - only on the image or info area
+        if (card && currentUser && !e.target.closest('.trailer-preview, .action-btn, .quick-rating, .quick-star, button')) {
             const movieId = parseInt(card.dataset.movieId);
             const movie = currentMovieContext.data.find(m => m.id === movieId);
-            if (movie) {
+            if (movie && !isMovieInArray(currentUser.watch_history, movieId)) {
                 addToWatchHistory(movie);
             }
         }
@@ -3172,9 +3142,6 @@ initializeSearch();
     });
 
     // 8. Initial movie load
-    setTimeout(() => fetchRecommendations(), 100);
-
-    // 9. Run tests (remove in production)
-    setTimeout(testEndpoints, 1000);
+    setTimeout(() => fetchRecommendations(39), 100);
     
 });

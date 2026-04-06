@@ -22,6 +22,9 @@ class Movie(db.Model):
     # Keep for backward compatibility
     img = db.Column(db.String(500), nullable=True)
     
+    # Video trailer URL (YouTube or direct link)
+    trailer_url = db.Column(db.String(500), nullable=True)
+    
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -41,6 +44,7 @@ class Movie(db.Model):
             "popularity": self.popularity,
             "img": self.get_image_url(),  # ✅ This returns correct path
             "poster_filename": self.poster_filename,
+            "trailer_url": self.trailer_url,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
     
