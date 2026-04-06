@@ -157,6 +157,7 @@ def create_movie():
             cast=data.get('cast', ''),
             plot=data.get('plot', ''),
             img=data.get('img', '/static/images/placeholders/poster-not-available.jpg'),
+            trailer_url=data.get('trailer_url', ''),
             created_at=datetime.utcnow()
         )
         
@@ -209,6 +210,8 @@ def update_movie(movie_id):
             movie.plot = data['plot']
         if 'img' in data:
             movie.img = data['img']
+        if 'trailer_url' in data:
+            movie.trailer_url = data['trailer_url']
         
         db.session.commit()
         
@@ -651,7 +654,7 @@ def export_report(report_type):
         output = io.StringIO()
         writer = csv.writer(output)
         
-        writer.writerow(['ID', 'Title', 'Year', 'Genres', 'Rating', 'Runtime', 'Director', 'Created At'])
+        writer.writerow(['ID', 'Title', 'Year', 'Genres', 'Rating', 'Runtime', 'Director', 'Trailer URL', 'Created At'])
         
         for movie in movies:
             writer.writerow([
@@ -662,6 +665,7 @@ def export_report(report_type):
                 movie.rating,
                 movie.runtime,
                 movie.director,
+                movie.trailer_url or '',
                 movie.created_at.strftime('%Y-%m-%d %H:%M:%S') if movie.created_at else ''
             ])
         
@@ -777,7 +781,8 @@ def bulk_upload_movies():
                 plot=movie_data.get('plot') or '',
                 keywords=movie_data.get('keywords') or '',
                 popularity=float(movie_data.get('popularity') or 0),
-                img=movie_data.get('img') or ''  # or handle poster_filename if uploading files
+                img=movie_data.get('img') or '',
+                trailer_url=movie_data.get('trailer_url') or ''  # Handle trailer URLs in bulk upload
             )
                 db.session.add(movie)
                 movies_added += 1
